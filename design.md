@@ -21,13 +21,11 @@
 
 * CLI should be able to connect to worker service and start, stop, get status, and stream output of a job.
 
-## Design
-
-### Library
+## Library
 
 The library will provide the following functionality:
   * Start Job - spawns a process to run the job on the host.
-    * Input: `command`, `args`, `directory`
+    * Input: `command`, `args`, `directory`, `envs`
     * Output `job id` or an error.
   * Stop Job - stops a given job.
     * Input: `job id`
@@ -40,14 +38,14 @@ The library will provide the following functionality:
     * Output: returns an error if `job id` does not exist.
     * Job output is buffered in memory so new subscribers can get the past events as well as future events. A big problem with this is memory exhaustion as job output accumulates. In a real system, I would use a distributed file system to save job output, and a well documented cleanup scheme so users are aware of how long output will persist, or alternatively just set a limit on storage usage for users, and leave it to them to cleanup their files.
 
-### API
+## API
 
 * Expose gRPC functions to drive the library.
 * gRPC API endpoints will additionally perform authentication and authorization.
 * all communication will be secured with mTLS. Security details below.
 * See .proto files for message gRPC schema.
 
-### Client CLI
+## Client CLI
 
 The client CLI will use the gRPC endpoints to interact with the server.
 * Predefined users will be created.
@@ -70,19 +68,19 @@ SUBCOMMANDS:
   
 SUBCOMMAND Details:
 
-Usage: client-start --cmd COMMAND --args ARG... --dir DIRECTORY --env ENV...
+Usage: client-start --cmd COMMAND --args ARG... --dir DIRECTORY --envs ENV=VAL...
 Usage: client-stop JOBID
 Usage: client-status JOBID
 Usage: client-output JOBID [ --stdout | --stderr | --all ]
 
 EXAMPLES:
 Assume there is a server listening on localhost:1234.
-  1. execute "echo hello world". Output is some job id "42".
-    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "echo" --args "hello world" --env PATH="/bin:/usr/bin" --dir "/tmp"
+  1. execute "echo hello world". Output is job id "42".
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "echo" --args "hello world" --envs PATH=$PATH --dir "/tmp"
     42
   2. execute "sleep 10000", which just makes a job that sleeps for 10000 seconds. Outputs job id "77"
-    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "sleep" --args "10000" --env PATH="/bin:/usr/bin" --dir "/tmp"
-  3. try to stop job 42, but we find it's already completed since "echo hello world" finished basically instantly.
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "sleep" --args "10000" --envs PATH=$PATH --dir "/tmp"
+  3. try to stop job 42, but we find it is already completed since "echo hello world" finished basically instantly.
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key stop 42
     Job '42' is not running.
   4. Get job status.
@@ -97,17 +95,20 @@ Assume there is a server listening on localhost:1234.
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key output 42 --all
     hello world
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key output 77 --all
-    
   7. $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key status 77
     Job '77': Exited: 130
 ```
-### Security
 
-#### Authentication
+### Nice to have
+
+* allow users to list jobs on the system. Gated by RBAC as well. I may implement this but I'm being mindful of scope creep.
+
+## Authentication
 
 * X.509 certificates used for mutual authentication, issued by some trusted CA.
+* For the project I will pre-generate keys and sign them for the server/client/CA as if I were the "trusted CA".
 
-#### Authorization
+## Authorization
 
 - Simplified Role Based Access Control
   * Permissions:
@@ -133,7 +134,7 @@ Assume there is a server listening on localhost:1234.
   * "Bob" cannot start/stop jobs. He can, however, query jobs of other users.
   * "Charlie" can start/stop/query jobs of any user.
  
-#### Transport Layer
+## Transport Layer
 
 - mTLS using TLS 1.3 with TLS13_AES_256_GCM_SHA384 cipher suite.
   * This uses ECDHE_ECDSA for key exchange/signing. Provides perfect forward secrecy.
@@ -142,7 +143,7 @@ Assume there is a server listening on localhost:1234.
   * Faster handshake than TLS 1.2
   * Could use CHACHA20_POLY1305, which might provide some performance benefits for devices with no AES hardware acceleration. I am biased towards AES for its maturity, but both are good.
 
-### Prototype-isms
+## Prototype-isms
 
 * User database, management, and roles will not be implemented for simplicity. Instead, just have some pre-defined users hardcoded in the server.
   * A real database for users might just be a simple SQL setup. RBAC can be stored in an SQL database as well. We could also just issue JSON tokens to make permissions stateless but if we allow early invalidation then it doesn't save us anything.
@@ -151,4 +152,4 @@ Assume there is a server listening on localhost:1234.
 * All server configuration is hard-coded. If the server crashes for whatever reason, there is no persistence of job info.
   * In a real system, we could keep logs of the running jobs to recover the state of the job coordination server.
 * There is only one job worker - the host system itself.
-  * To make this thing scale, we could have the server act as a coordinator for many distributed worker systems. There are many approaches and tradeoffs in the implementation of a distributed job worker service that I will not go into. Some inspiration for such a system could be found in the Map Reduce and GFS papers.
+  * To make this thing scale, we could have the server act as a coordinator for many distributed worker systems.
