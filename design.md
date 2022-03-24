@@ -70,7 +70,7 @@ SUBCOMMANDS:
   
 SUBCOMMAND Details:
 
-Usage: client-start --cmd COMMAND --args ARG... --dir DIRECTORY
+Usage: client-start --cmd COMMAND --args ARG... --dir DIRECTORY --env ENV...
 Usage: client-stop JOBID
 Usage: client-status JOBID
 Usage: client-output JOBID [ --stdout | --stderr | --all ]
@@ -78,10 +78,10 @@ Usage: client-output JOBID [ --stdout | --stderr | --all ]
 EXAMPLES:
 Assume there is a server listening on localhost:1234.
   1. execute "echo hello world". Output is some job id "42".
-    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "echo hello world" --dir "/tmp"
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "echo" --args "hello world" --env PATH="/bin:/usr/bin" --dir "/tmp"
     42
   2. execute "sleep 10000", which just makes a job that sleeps for 10000 seconds. Outputs job id "77"
-    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "sleep 10000" --dir "/tmp"
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "sleep" --args "10000" --env PATH="/bin:/usr/bin" --dir "/tmp"
   3. try to stop job 42, but we find it's already completed since "echo hello world" finished basically instantly.
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key stop 42
     Job '42' is not running.
