@@ -38,11 +38,11 @@ The library will provide the following functionality:
   * Subscribe to Output - registers a subscriber to a job's output stream for `output type` events. Optionally publish all past events to the subscriber. All future events will be published to all subscribers.
     * `output type` can be stdout, stderr, or both.
     * Output: returns an error if `job id` does not exist.
-    * Job output is buffered in memory so new subscribers can get the past events as well as future events. A big problem with this is memory exhaustion as job output accumulates. In a real system, I would use a distributed file system to save job output, and a well documented cleanup scheme so users are aware of how long output will persist.
+    * Job output is buffered in memory so new subscribers can get the past events as well as future events. A big problem with this is memory exhaustion as job output accumulates. In a real system, I would use a distributed file system to save job output, and a well documented cleanup scheme so users are aware of how long output will persist, or alternatively just set a limit on storage usage for users, and leave it to them to cleanup their files.
 
 ### API
 
-* Use gRPC to interact with the library.
+* Expose gRPC functions to drive the library.
 * gRPC API endpoints will additionally perform authentication and authorization.
 * all communication will be secured with mTLS. Security details below.
 * See .proto files for message gRPC schema.
@@ -53,11 +53,53 @@ The client CLI will use the gRPC endpoints to interact with the server.
 * Predefined users will be created.
 * Usage should look roughly like:
 
+```sh
+Usage: client [OPTIONS] [SUBCOMMAND]
+
+OPTIONS:
+  -s, --server <url>
+  -u, --user <username>
+  -c, --cert <certificate>  
+
+SUBCOMMANDS:
+  start
+  stop
+  status
+  output
+  
+SUBCOMMAND Details:
+
+Usage: client-start --cmd COMMAND --dir DIRECTORY
+Usage: client-stop JOBID
+Usage: client-status JOBID
+Usage: client-output JOBID [ --stdout | --stderr | --all ]
+
+EXAMPLES:
+Assume there is a server listening on localhost:1234.
+  1. execute "echo hello world". Output is some job id "42".
+    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem start --cmd "echo hello world" --dir "/tmp"
+    42
+  2. execute "sleep 10000", which just makes a job that sleeps for 10000 seconds. Outputs job id "77"
+    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem start --cmd "sleep 10000 && echo done sleeping" --dir "/tmp"
+  3. try to stop job 42, but we find it's already completed since "echo hello world" finished basically instantly.
+    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem stop 42
+    Job '42' is not running.
+  4. Get job status.
+    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem status 42
+    Job '42': Exited: 0
+    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem status 77
+    Job '77': Running
+  5. stop the sleep job
+    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem stop 77
+    Stopped Job '77'
+  6. Get output
+    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem output 42 --all
+    hello world
+    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem output 77 --all
+    done sleeping
+  7. $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem status 77
+    Job '77': Exited: 130
 ```
-
-```
-
-
 ### Security
 
 #### Authentication
