@@ -41,14 +41,16 @@ The library will provide the following functionality:
 ## API
 
 * Expose gRPC functions to drive the library.
-* gRPC API endpoints will additionally perform authentication and authorization.
-* all communication will be secured with mTLS. Security details below.
+* The server will also intercept gRPC invocations to do authentication and authorization.
+  * all communication will be secured with mTLS. Security details below.
 * See .proto files for message gRPC schema.
 
 ## Client CLI
 
 The client CLI will use the gRPC endpoints to interact with the server.
 * Predefined users will be created.
+* For now, just make user/cert/key cli options. TODO: add config files so the cli isn't tedious to use
+* cert/key authenticate the user, server then checks user's roles for authorization.
 * Usage should look roughly like:
 
 ```sh
@@ -76,10 +78,10 @@ Usage: client-output JOBID [ --stdout | --stderr | --all ]
 EXAMPLES:
 Assume there is a server listening on localhost:1234.
   1. execute "echo hello world". Output is job id "42".
-    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "echo" --args "hello world" --envs PATH=$PATH --dir "/tmp"
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "echo" --args "hello world" --envs PATH="/usr/bin" --dir "/tmp"
     42
   2. execute "sleep 10000", which just makes a job that sleeps for 10000 seconds. Outputs job id "77"
-    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "sleep" --args "10000" --envs PATH=$PATH --dir "/tmp"
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "sleep" --args "10000" --envs PATH="/usr/bin" --dir "/tmp"
   3. try to stop job 42, but we find it is already completed since "echo hello world" finished basically instantly.
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key stop 42
     Job '42' is not running.
@@ -105,8 +107,8 @@ Assume there is a server listening on localhost:1234.
 
 ## Authentication
 
-* X.509 certificates used for mutual authentication, issued by some trusted CA.
-* For the project I will pre-generate keys and sign them for the server/client/CA as if I were the "trusted CA".
+* X.509 certificates used for mutual authentication, signed by some trusted CA.
+* For the project I will pre-generate keys and sign them for the server/client/CA as if I were a root CA (the CA cert will be signed by the CA itself).
 
 ## Authorization
 
@@ -132,7 +134,7 @@ Assume there is a server listening on localhost:1234.
 
   * "Alice" can start/stop/query jobs of her own.
   * "Bob" cannot start/stop jobs. He can, however, query jobs of other users.
-  * "Charlie" can start/stop/query jobs of any user.
+  * "Charlie" can start/stop/query jobs of any user. NOTE: if Charlie starts a job, it will be for his Self entity. There is no start-job impersonation.
  
 ## Transport Layer
 
