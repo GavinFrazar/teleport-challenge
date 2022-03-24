@@ -59,7 +59,8 @@ Usage: client [OPTIONS] [SUBCOMMAND]
 OPTIONS:
   -s, --server <url>
   -u, --user <username>
-  -c, --cert <certificate>  
+  -c, --cert <certificate>
+  -k, --key <key>
 
 SUBCOMMANDS:
   start
@@ -69,7 +70,7 @@ SUBCOMMANDS:
   
 SUBCOMMAND Details:
 
-Usage: client-start --cmd COMMAND --dir DIRECTORY
+Usage: client-start --cmd COMMAND --args ARG... --dir DIRECTORY
 Usage: client-stop JOBID
 Usage: client-status JOBID
 Usage: client-output JOBID [ --stdout | --stderr | --all ]
@@ -77,27 +78,27 @@ Usage: client-output JOBID [ --stdout | --stderr | --all ]
 EXAMPLES:
 Assume there is a server listening on localhost:1234.
   1. execute "echo hello world". Output is some job id "42".
-    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem start --cmd "echo hello world" --dir "/tmp"
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "echo hello world" --dir "/tmp"
     42
   2. execute "sleep 10000", which just makes a job that sleeps for 10000 seconds. Outputs job id "77"
-    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem start --cmd "sleep 10000 && echo done sleeping" --dir "/tmp"
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "sleep 10000" --dir "/tmp"
   3. try to stop job 42, but we find it's already completed since "echo hello world" finished basically instantly.
-    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem stop 42
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key stop 42
     Job '42' is not running.
   4. Get job status.
-    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem status 42
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key status 42
     Job '42': Exited: 0
-    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem status 77
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key status 77
     Job '77': Running
   5. stop the sleep job
-    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem stop 77
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key stop 77
     Stopped Job '77'
   6. Get output
-    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem output 42 --all
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key output 42 --all
     hello world
-    $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem output 77 --all
-    done sleeping
-  7. $ client -s localhost:1234 -u gavin -c ~/certs/gavin.pem status 77
+    $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key output 77 --all
+    
+  7. $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key status 77
     Job '77': Exited: 130
 ```
 ### Security
