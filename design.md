@@ -23,27 +23,36 @@
 
 ## Library
 
-The library will provide the following functionality:
+The library will provide a JobCoordinator structure. The JobCoordinator will keep records of jobs by `job id`: status, output, command, args, dir, envs.
+JobCoordinator will hand out `job id`, from a simple integer counter, as jobs are started. It will also provide the following thread-safe functionality:
   * Start Job - spawns a process to run the job on the host.
     * Input: `command`, `args`, `directory`, `envs`
-    * Output `job id` or an error.
+    * Output `job id`
+      * NOTE: `job id` will be a simple uint64 number starting from 0 and incrementing as jobs are started. A real implementation would use a real UUID. This would especially matter if we scaled this to a distributed job service. For now, the counter will just be an int behind a mutex.
+    * Error When: Job fails to start for any reason: command not found, directory not found, etc.
+      * NOTE: if a command exits with an error, maybe because of bad usage like `touch` - that does not return error from this function. The command still spawns, it just exits with an error code immediately.
   * Stop Job - stops a given job.
     * Input: `job id`
-    * Output: void or error if `job id` is not a running job.
+    * Output: void
+    * Error When: `job id` does not exist or is not a *running* job.
   * Query Status - query a job's status.
     * Input: `job id`
-    * Output: either `Exited` or `Running`. `Exited` will also contain the exit code of the process. returns an error if `job id` does not exist.
-  * Subscribe to Output - registers a subscriber to a job's output stream for `output type` events. Optionally publish all past events to the subscriber. All future events will be published to all subscribers.
+    * Output: either `Exited` or `Running`. `Exited` will also contain the exit code of the process.
+    * Error When: `job id` does not exist.
+  * Subscribe to Output - registers a subscriber to a job's output stream for `output type` events. Publish all past events to the subscriber. All future events will be published to all subscribers.
     * `output type` can be stdout, stderr, or both.
-    * Output: returns an error if `job id` does not exist.
-    * Job output is buffered in memory so new subscribers can get the past events as well as future events. A big problem with this is memory exhaustion as job output accumulates. In a real system, I would use a distributed file system to save job output, and a well documented cleanup scheme so users are aware of how long output will persist, or alternatively just set a limit on storage usage for users, and leave it to them to cleanup their files.
+    * Input: `job id`, 
+    * Output: some Outputstream object/channel. TBD
+    * Error When: `job id` does not exist.
+    * Job output is buffered in memory so new subscribers can get the past events as well as future events. A big problem with this is memory exhaustion as job output accumulates. In a real system, I would use a distributed file system to save job output, and a well documented cleanup scheme so users are aware of how long output will persist, or alternatively just set a limit on storage usage for users and leave it to them to cleanup their files.
 
 ## API
 
-* Expose gRPC functions to drive the library.
-* The server will also intercept gRPC invocations to do authentication and authorization.
-  * all communication will be secured with mTLS. Security details below.
-* See .proto files for message gRPC schema.
+* Expose gRPC functions as a server listening on 127.0.0.1:[SomePort] to drive the library.
+* All communication between client/server will be secured with mTLS. See [Security details](authentication) below.
+* Server authenticates users using their cert.
+* Server maintains `job id` -> `entity` and `user` -> `entity` -> `roles` records for authorization inside gRPC calls.
+* See [jobservice.proto](protobuf/jobservice.proto) for message and service schema.
 
 ## Client CLI
 
