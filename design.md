@@ -1,10 +1,10 @@
-# Prototype Job Worker
+# Prototype Job Service
 
 ## Requirements
 
 ### Library
 
-* Worker library with methods to start/stop/query status and get the output of a job.
+* Job service library with methods to start/stop/query status and get the output of a job.
 * Library should be able to stream the output of a running job.
   * Output should be from start of process execution.
   * Multiple concurrent clients should be supported.
@@ -19,7 +19,7 @@
 
 ### Client
 
-* CLI should be able to connect to worker service and start, stop, get status, and stream output of a job.
+* CLI should be able to connect to job service and start, stop, get status, and stream output of a job.
 
 ## Library
 
