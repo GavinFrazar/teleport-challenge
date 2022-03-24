@@ -27,15 +27,17 @@
 
 The library will provide the following functionality:
   * Start Job - spawns a process to run the job on the host.
-    * Returns a `job id` or an error.
-  * Stop Job - stops a given job by `job id`.
-    * Returns an error if the given id is not a running job.
-  * Query Status - takes a `job id` and returns that job's status.
-    * Status will be either `Exited` or `Running`. `Exited` will also contain the exit code of the process.
-    * Returns an error if `job id` does not exist.
-  * Subscribe to Output - takes a `job id` and `output type` and registers a subscriber to the job's output stream for `output type` events. Publish all past events to the subscriber. All future events will be published to all subscribers.
-    * Returns an error if `job id` does not exist.
+    * Input: `command`, `args`, `directory`
+    * Output `job id` or an error.
+  * Stop Job - stops a given job.
+    * Input: `job id`
+    * Output: void or error if `job id` is not a running job.
+  * Query Status - query a job's status.
+    * Input: `job id`
+    * Output: either `Exited` or `Running`. `Exited` will also contain the exit code of the process. returns an error if `job id` does not exist.
+  * Subscribe to Output - registers a subscriber to a job's output stream for `output type` events. Optionally publish all past events to the subscriber. All future events will be published to all subscribers.
     * `output type` can be stdout, stderr, or both.
+    * Output: returns an error if `job id` does not exist.
     * Job output is buffered in memory so new subscribers can get the past events as well as future events. A big problem with this is memory exhaustion as job output accumulates. In a real system, I would use a distributed file system to save job output, and a well documented cleanup scheme so users are aware of how long output will persist.
 
 ### API
