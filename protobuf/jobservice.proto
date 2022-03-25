@@ -31,9 +31,15 @@ message StatusRequest {
 
 message StatusResponse {
   message Running{}
-  oneof status {
+  message Exited {
+    oneof exitstatus {
+      int32 code = 1;
+      int32 signal = 2;
+    }
+  }
+  oneof jobstatus {
     Running running = 1;
-    int32 exitcode = 2;
+    Exited exited = 2;
   }
 }
 
