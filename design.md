@@ -86,28 +86,28 @@ Usage: client-output JOBID [ --stdout | --stderr | --all ]
 
 EXAMPLES:
 Assume there is a server listening on localhost:1234.
-  1. execute "echo hello world". Output is job id "42".
+#  1. execute "echo hello world". Output is job id "42".
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "echo" --args "hello world" --envs PATH="/usr/bin" --dir "/tmp"
-    42
-  2. execute "sleep 10000", which just makes a job that sleeps for 10000 seconds. Outputs job id "77"
+#    42
+#  2. execute "sleep 10000", which just makes a job that sleeps for 10000 seconds. Outputs job id "77"
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key start --cmd "sleep" --args "10000" --envs PATH="/usr/bin" --dir "/tmp"
-  3. try to stop job 42, but we find it is already completed since "echo hello world" finished basically instantly.
+#  3. try to stop job 42, but we find it is already completed since "echo hello world" finished basically instantly.
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key stop 42
-    Job '42' is not running.
-  4. Get job status.
+#    Job '42' is not running.
+#  4. Get job status.
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key status 42
-    Job '42': Exited: 0
+#    Job '42': Exited: 0
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key status 77
-    Job '77': Running
-  5. stop the sleep job
+#    Job '77': Running
+#  5. stop the sleep job
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key stop 77
-    Stopped Job '77'
-  6. Get output
+#    Stopped Job '77'
+#  6. Get output
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key output 42 --all
-    hello world
+#    hello world
     $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key output 77 --all
-  7. $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key status 77
-    Job '77': Exited: 130
+#  7. $ client -s localhost:1234 -u gavin -c ~/secrets/gavin.pem -k ~/secrets/gavin.key status 77
+#    Job '77': Exited: 130
 ```
 
 ### Nice to have
