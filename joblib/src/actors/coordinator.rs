@@ -1,4 +1,5 @@
 use uuid::Uuid;
+use crate::events::JobStatus;
 
 mod actor;
 mod messages;
@@ -10,12 +11,11 @@ mod messages;
 /// The actor-handle abstraction allows this struct to be cloned freely in a multi-thread async context,
 /// without requiring an Arc<Mutex> or any other means of synchronization.
 #[derive(Clone)]
-pub struct JobCoordinator {}
+pub struct JobCoordinatorHandle {}
 
 pub type JobId = Uuid;
-pub type JobStatus = (); // TODO
 
-impl JobCoordinator {
+impl JobCoordinatorHandle {
     pub fn new() -> Self {
         todo!()
     }

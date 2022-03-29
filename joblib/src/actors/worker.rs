@@ -1,4 +1,4 @@
-use crate::actors::coordinator::JobStatus;
+use crate::events::JobStatus;
 
 mod actor;
 mod messages;
