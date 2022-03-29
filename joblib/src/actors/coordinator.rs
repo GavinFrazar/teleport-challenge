@@ -13,7 +13,7 @@ mod messages;
 pub struct JobCoordinator {}
 
 pub type JobId = Uuid;
-type JobStatus = (); // TODO
+pub type JobStatus = (); // TODO
 
 impl JobCoordinator {
     pub fn new() -> Self {
