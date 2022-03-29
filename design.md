@@ -24,11 +24,11 @@
 ## Library
 
 The library will provide a JobCoordinator structure. The JobCoordinator will keep records of jobs by `job id`: status, output, command, args, dir, envs.
-JobCoordinator will hand out `job id`, from a simple integer counter, as jobs are started. It will also provide the following thread-safe functionality:
+JobCoordinator will hand out `job id` as jobs are started. It will also provide the following thread-safe functionality:
   * Start Job - spawns a process to run the job on the host.
     * Input: `command`, `args`, `directory`, `envs`
     * Output `job id`
-      * NOTE: `job id` will be a simple uint64 number starting from 0 and incrementing as jobs are started. A real implementation would use a real UUID. This would especially matter if we scaled this to a distributed job service. For now, the counter will just be an int behind a mutex.
+      * NOTE: `job id` will be a proper randomized UUID.
     * Error When: Job fails to start for any reason: command not found, directory not found, etc.
       * NOTE: if a command exits with an error, maybe because of bad usage like `touch` - that does not return error from this function. The command still spawns, it just exits with an error code immediately.
   * Stop Job - stops a given job.
