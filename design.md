@@ -132,7 +132,10 @@ Assume there is a server listening on localhost:1234.
     * Self - scope corresponding to an invididual user. The only users with permissions here are the individual user and those with "All" roles.
     * All - scope corresponding to *all* jobs.
   * Users are assigned roles per scope.
-  * Could add distinct shared scopes, but I want to keep it simple. Also, it does not seem useful without real resource isolation/control, which is out of scope for this project. For now there is only one "shared scope": the host system itself.
+  * `job id` is always associated with a scope when a job is started. In this prototype, that means each `job id` will be associated with the user who started the job.
+    * NOTE: It seems redundant to have a notion of a "scope" per user, because there is no other kind of scope except "All scopes", however I still like to maintain the idea of "roles per scope" because it is extendable to shared "group" scopes in the hypothetical future of the project.
+  * When a user connects and authenticates, the certificate subject will identify the user and the user's role(s).
+  * Could add distinct shared "group" scopes, but I want to keep it simple. Also, it does not seem useful without real resource isolation/control, which is out of scope for this project. For now there is only one "shared scope": the host system itself.
 - Example setup
 
 | User | Scope | Role |
