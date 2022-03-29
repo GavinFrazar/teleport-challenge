@@ -51,7 +51,7 @@ JobCoordinator will hand out `job id`, from a simple integer counter, as jobs ar
 * Expose gRPC functions as a server listening on 127.0.0.1:[SomePort] to drive the library.
 * All communication between client/server will be secured with mTLS. See [Security details](authentication) below.
 * Server authenticates users using their cert.
-* Server maintains `job id` -> `entity` and `user` -> `entity` -> `roles` records for authorization inside gRPC calls.
+* Server maintains `job id` -> `scope` and `user` -> `scope` -> `roles` records for authorization inside gRPC calls.
 * See [jobservice.proto](protobuf/jobservice.proto) for message and service schema.
 
 ## Client CLI
@@ -128,14 +128,14 @@ Assume there is a server listening on localhost:1234.
   * Roles:
     * Task Manager: start/stop and status/output permissions.
     * Analyst: status/output permissions only.
-  * Entities:
-    * Self - the entity corresponding to an invididual user. The only users with permissions here are the individual user and those with "All" roles.
-    * All - entity corresponding to *all* entities.
-  * Users are assigned roles per entity.
-  * Could add distinct shared entities, but I want to keep it simple. Also, it does not seem useful without real resource isolation/control, which is out of scope. For now there is only one "shared entity": the host system itself.
+  * Scope:
+    * Self - scope corresponding to an invididual user. The only users with permissions here are the individual user and those with "All" roles.
+    * All - scope corresponding to *all* jobs.
+  * Users are assigned roles per scope.
+  * Could add distinct shared scopes, but I want to keep it simple. Also, it does not seem useful without real resource isolation/control, which is out of scope for this project. For now there is only one "shared scope": the host system itself.
 - Example setup
 
-| User | Entity | Role |
+| User | Scope | Role |
 | :---: | :---: | :---:|
 | Alice | Self | Task Manager |
 | Bob | All | Analyst |
@@ -143,7 +143,7 @@ Assume there is a server listening on localhost:1234.
 
   * "Alice" can start/stop/query jobs of her own.
   * "Bob" cannot start/stop jobs. He can, however, query jobs of other users.
-  * "Charlie" can start/stop/query jobs of any user. NOTE: if Charlie starts a job, it will be for his Self entity. There is no start-job impersonation.
+  * "Charlie" can start/stop/query jobs of any user. NOTE: if Charlie starts a job, it will be for his Self scope. There is no start-job impersonation.
  
 ## Transport Layer
 
