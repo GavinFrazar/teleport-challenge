@@ -1,0 +1,58 @@
+syntax = "proto3";
+package jobservice;
+
+service JobService {
+    rpc StartJob(StartRequest) returns (StartResponse);
+    rpc StopJob(StopRequest) returns (StopResponse);
+    rpc QueryStatus(StatusRequest) returns (StatusResponse);
+    rpc StreamOutput(OutputRequest) returns (stream OutputResponse);
+}
+
+message StartRequest {
+  string cmd = 1;
+  repeated string args = 2;
+  string dir = 3;
+  map<string, string> envs = 4;
+}
+
+message StartResponse {
+  uint64 id = 1;
+}
+
+message StopRequest {
+  uint64 id = 1;
+}
+
+message StopResponse{}
+
+message StatusRequest {
+  uint64 id = 1;
+}
+
+message StatusResponse {
+  message Running{}
+  message Exited {
+    oneof exitstatus {
+      int32 code = 1;
+      int32 signal = 2;
+    }
+  }
+  oneof jobstatus {
+    Running running = 1;
+    Exited exited = 2;
+  }
+}
+
+message OutputRequest {
+  uint64 id = 1;
+  enum Type {
+    STDOUT = 0;
+    STDERR = 1;
+    ALL = 2;
+  }
+  Type type = 2;
+}
+
+message OutputResponse {
+  bytes data = 1;
+}
