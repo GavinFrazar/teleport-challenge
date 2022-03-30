@@ -12,14 +12,14 @@ use tokio::{
 };
 
 pub struct Actor {
-    inbox: mpsc::Receiver<WorkerMessage>,
+    inbox: mpsc::UnboundedReceiver<WorkerMessage>,
     kill_tx: Option<oneshot::Sender<()>>,
     job_status: JobStatus,
 }
 
 impl Actor {
     pub fn spawn(
-        inbox: mpsc::Receiver<WorkerMessage>,
+        inbox: mpsc::UnboundedReceiver<WorkerMessage>,
         output_tx: mpsc::UnboundedSender<Output>,
         child: Child,
     ) {

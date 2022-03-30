@@ -14,7 +14,7 @@ use tokio::{
 
 #[derive(Clone)]
 pub struct WorkerHandle {
-    sender: mpsc::Sender<WorkerMessage>,
+    sender: mpsc::UnboundedSender<WorkerMessage>,
 }
 
 impl WorkerHandle {
@@ -33,21 +33,18 @@ impl WorkerHandle {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
-        let (sender, inbox) = mpsc::channel(8);
+        let (sender, inbox) = mpsc::unbounded_channel();
         Actor::spawn(inbox, output_tx, child);
         Ok(Self { sender })
     }
 
-    pub async fn get_status(&self, status_tx: oneshot::Sender<errors::Result<JobStatus>>) {
-        let _ = self
-            .sender
-            .send(WorkerMessage::GetStatus {
-                response: status_tx,
-            })
-            .await;
+    pub fn get_status(&self, status_tx: oneshot::Sender<errors::Result<JobStatus>>) {
+        let _ = self.sender.send(WorkerMessage::GetStatus {
+            response: status_tx,
+        });
     }
 
-    pub async fn stop(&self) {
-        let _ = self.sender.send(WorkerMessage::Stop).await;
+    pub fn stop(&self) {
+        let _ = self.sender.send(WorkerMessage::Stop);
     }
 }

@@ -63,10 +63,10 @@ impl JobCoordinator {
             Ok(worker) => {
                 let job_id = uuid::Uuid::new_v4();
                 self.workers.insert(job_id, worker);
-                response.send(Ok(job_id));
+                let _ = response.send(Ok(job_id));
             }
             Err(e) => {
-                response.send(Err(e));
+                let _ = response.send(Err(e));
             }
         }
     }
@@ -74,9 +74,9 @@ impl JobCoordinator {
     fn stop_job(&mut self, job_id: JobId, response: oneshot::Sender<errors::Result<()>>) {
         if let Some(worker) = self.workers.get(&job_id) {
             worker.stop();
-            response.send(Ok(()));
+            let _ = response.send(Ok(()));
         } else {
-            response.send(Err(JobError::NotFound));
+            let _ = response.send(Err(JobError::NotFound));
         }
     }
 
@@ -88,7 +88,7 @@ impl JobCoordinator {
         if let Some(worker) = self.workers.get(&job_id) {
             worker.get_status(response);
         } else {
-            response.send(Err(JobError::NotFound));
+            let _ = response.send(Err(JobError::NotFound));
         }
     }
 
