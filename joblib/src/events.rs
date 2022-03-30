@@ -1,4 +1,4 @@
-use bytes::Bytes;
+use crate::types::OutputBlob;
 
 #[derive(Clone, Copy, Debug)]
 pub enum JobStatus {
@@ -10,6 +10,6 @@ pub enum JobStatus {
 
 #[derive(Clone)]
 pub enum Output {
-    Stdout(Bytes),
-    Stderr(Bytes),
+    Stdout(OutputBlob),
+    Stderr(OutputBlob),
 }

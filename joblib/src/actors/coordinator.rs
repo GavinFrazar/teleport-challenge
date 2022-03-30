@@ -1,8 +1,14 @@
-use uuid::Uuid;
-use crate::events::JobStatus;
-
 mod actor;
 mod messages;
+
+use self::{
+    actor::JobCoordinator,
+    messages::CoordinatorMessage::{self, GetStatus, StartJob, StopJob},
+};
+use crate::events::JobStatus;
+use crate::types::{Args, Dir, Envs, JobId, Program};
+use std::io;
+use tokio::sync::{mpsc, oneshot};
 
 /// A `JobCoordinator` which provides functionality for managing jobs and querying job state.
 ///
@@ -11,31 +17,58 @@ mod messages;
 /// The actor-handle abstraction allows this struct to be cloned freely in a multi-thread async context,
 /// without requiring an Arc<Mutex> or any other means of synchronization.
 #[derive(Clone)]
-pub struct JobCoordinatorHandle {}
-
-pub type JobId = Uuid;
+pub struct JobCoordinatorHandle {
+    sender: mpsc::Sender<CoordinatorMessage>,
+}
 
 impl JobCoordinatorHandle {
     pub fn new() -> Self {
-        todo!()
+        let (sender, receiver) = mpsc::channel(32);
+        JobCoordinator::spawn(receiver);
+        Self { sender }
     }
 
     /// TODO: make these args more generic
     pub async fn start_job(
         &self,
-        cmd: String,
-        args: Vec<String>,
-        dir: String,
-        envs: Vec<(String, String)>,
-    ) -> JobId {
-        todo!()
+        cmd: Program,
+        args: Args,
+        dir: Dir,
+        envs: Envs,
+    ) -> io::Result<JobId> {
+        let (tx, rx) = oneshot::channel();
+        let msg = StartJob {
+            cmd,
+            args,
+            dir,
+            envs,
+            response: tx,
+        };
+        self.sender.send(msg).await.expect("JobCoordinator exited");
+        rx.await.expect("JobCoordinator exited")
     }
 
-    pub async fn stop_job(&self, job_id: JobId) {
-        todo!()
+    pub async fn stop_job(&self, job_id: JobId) -> io::Result<()> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(StopJob {
+                job_id,
+                response: tx,
+            })
+            .await
+            .expect("JobCoordinator exited");
+        rx.await.expect("JobCoordinator exited")
     }
 
-    pub async fn get_job_status(&self, job_id: JobId) -> JobStatus {
-        todo!()
+    pub async fn get_job_status(&self, job_id: JobId) -> io::Result<JobStatus> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(GetStatus {
+                job_id,
+                response: tx,
+            })
+            .await
+            .expect("JobCoordinator exited");
+        rx.await.expect("JobCoordinator exited")
     }
 }
