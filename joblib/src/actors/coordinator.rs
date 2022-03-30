@@ -5,6 +5,7 @@ use self::{
     actor::JobCoordinator,
     messages::CoordinatorMessage::{self, GetStatus, StartJob, StopJob},
 };
+use crate::errors;
 use crate::events::JobStatus;
 use crate::types::{Args, Dir, Envs, JobId, Program};
 use std::io;
@@ -48,7 +49,7 @@ impl JobCoordinatorHandle {
         rx.await.expect("JobCoordinator exited")
     }
 
-    pub async fn stop_job(&self, job_id: JobId) -> io::Result<()> {
+    pub async fn stop_job(&self, job_id: JobId) -> errors::Result<()> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(StopJob {
@@ -60,7 +61,7 @@ impl JobCoordinatorHandle {
         rx.await.expect("JobCoordinator exited")
     }
 
-    pub async fn get_job_status(&self, job_id: JobId) -> io::Result<JobStatus> {
+    pub async fn get_job_status(&self, job_id: JobId) -> errors::Result<JobStatus> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(GetStatus {
@@ -69,6 +70,6 @@ impl JobCoordinatorHandle {
             })
             .await
             .expect("JobCoordinator exited");
-        rx.await.expect("JobCoordinator exited")
+        rx.await.expect("Worker exited")
     }
 }

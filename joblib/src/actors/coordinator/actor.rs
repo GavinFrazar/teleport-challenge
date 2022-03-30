@@ -1,9 +1,9 @@
 use super::messages::{CoordinatorMessage, StreamRequest};
 use crate::actors::{broadcaster::BroadcasterHandle, worker::WorkerHandle};
+use crate::errors::{self, JobError};
 use crate::events::JobStatus;
 use crate::types::{Args, Dir, Envs, JobId, OutputBlob, Program};
-use std::collections::HashMap;
-use std::io;
+use std::{collections::HashMap, io};
 use tokio::sync::{mpsc, oneshot};
 
 pub struct JobCoordinator {
@@ -56,17 +56,40 @@ impl JobCoordinator {
         envs: Envs,
         response: oneshot::Sender<io::Result<JobId>>,
     ) {
-        let job_id = uuid::Uuid::new_v4();
-        let _ = response.send(Ok(job_id)); // ignore send error - caller is no longer interested
-        todo!()
+        let (output_tx, output_rx) = mpsc::unbounded_channel(); // channel for piping child process output
+
+        // TODO: add broadcaster to receive the child output
+        match WorkerHandle::spawn(output_tx, cmd, args, dir, envs) {
+            Ok(worker) => {
+                let job_id = uuid::Uuid::new_v4();
+                self.workers.insert(job_id, worker);
+                response.send(Ok(job_id));
+            }
+            Err(e) => {
+                response.send(Err(e));
+            }
+        }
     }
 
-    fn stop_job(&mut self, job_id: JobId, response: oneshot::Sender<io::Result<()>>) {
-        todo!()
+    fn stop_job(&mut self, job_id: JobId, response: oneshot::Sender<errors::Result<()>>) {
+        if let Some(worker) = self.workers.get(&job_id) {
+            worker.stop();
+            response.send(Ok(()));
+        } else {
+            response.send(Err(JobError::NotFound));
+        }
     }
 
-    fn get_job_status(&mut self, job_id: JobId, response: oneshot::Sender<io::Result<JobStatus>>) {
-        todo!()
+    fn get_job_status(
+        &mut self,
+        job_id: JobId,
+        response: oneshot::Sender<errors::Result<JobStatus>>,
+    ) {
+        if let Some(worker) = self.workers.get(&job_id) {
+            worker.get_status(response);
+        } else {
+            response.send(Err(JobError::NotFound));
+        }
     }
 
     fn get_job_output(

@@ -1,6 +1,7 @@
 mod actor;
 mod messages;
 
+use crate::errors;
 use crate::events::{JobStatus, Output};
 use crate::types::{Args, Dir, Envs, Program};
 use actor::Actor;
@@ -37,15 +38,13 @@ impl WorkerHandle {
         Ok(Self { sender })
     }
 
-    pub async fn get_status(&self) -> JobStatus {
-        let (status_tx, status_rx) = oneshot::channel();
+    pub async fn get_status(&self, status_tx: oneshot::Sender<errors::Result<JobStatus>>) {
         let _ = self
             .sender
             .send(WorkerMessage::GetStatus {
                 response: status_tx,
             })
             .await;
-        status_rx.await.expect("Worker exited")
     }
 
     pub async fn stop(&self) {

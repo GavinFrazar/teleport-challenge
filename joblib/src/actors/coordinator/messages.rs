@@ -1,3 +1,4 @@
+use crate::errors;
 use crate::events::JobStatus;
 use crate::types::{Args, Dir, Envs, JobId, OutputBlob, Program};
 use std::io;
@@ -14,11 +15,11 @@ pub enum CoordinatorMessage {
     },
     StopJob {
         job_id: JobId,
-        response: oneshot::Sender<io::Result<()>>,
+        response: oneshot::Sender<errors::Result<()>>,
     },
     GetStatus {
         job_id: JobId,
-        response: oneshot::Sender<io::Result<JobStatus>>,
+        response: oneshot::Sender<errors::Result<JobStatus>>,
     },
     GetOutput {
         request: StreamRequest,

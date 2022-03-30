@@ -113,7 +113,7 @@ impl Actor {
                     if let Some(msg) = maybe_msg {
                         match msg {
                             GetStatus { response } => {
-                                let _ = response.send(self.job_status);
+                                let _ = response.send(Ok(self.job_status));
                             }
                             Stop => {
                                 self.kill_tx.take().map(|kill_tx| kill_tx.send(()));
