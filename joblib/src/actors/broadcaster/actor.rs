@@ -83,47 +83,62 @@ impl Actor {
     }
 
     fn stream_stdout(&mut self, output_tx: mpsc::UnboundedSender<OutputBlob>) {
-        self.output_buffer
+        for blob in self
+            .output_buffer
             .iter()
             .filter_map(|output| match output {
                 Output::Stdout(blob) => Some(blob),
                 _ => None,
             })
             .cloned()
-            .for_each(|blob| output_tx.send(blob).expect("stdout receiver dropped"));
+        {
+            if let Err(_) = output_tx.send(blob) {
+                // if receiver drops, that's fine, just ignore the error and stop sending
+                // skip adding the subscriber too
+                return;
+            }
+        }
         if self.output_pending {
             self.stdout_subscribers.push(output_tx);
         }
     }
 
     fn stream_stderr(&mut self, output_tx: mpsc::UnboundedSender<OutputBlob>) {
-        self.output_buffer
+        for blob in self
+            .output_buffer
             .iter()
             .filter_map(|output| match output {
                 Output::Stderr(blob) => Some(blob),
                 _ => None,
             })
-            .for_each(|blob| {
-                output_tx
-                    .send(blob.clone())
-                    .expect("stderr receiver dropped")
-            });
+            .cloned()
+        {
+            if let Err(_) = output_tx.send(blob) {
+                // if receiver drops, that's fine, just ignore the error and stop sending
+                // skip adding the subscriber too
+                return;
+            }
+        }
         if self.output_pending {
             self.stderr_subscribers.push(output_tx);
         }
     }
 
     fn stream_all(&mut self, output_tx: mpsc::UnboundedSender<OutputBlob>) {
-        self.output_buffer
+        for blob in self
+            .output_buffer
             .iter()
-            .map(|output| match output {
-                Output::Stdout(blob) | Output::Stderr(blob) => blob,
+            .filter_map(|output| match output {
+                Output::Stdout(blob) | Output::Stderr(blob) => Some(blob),
             })
-            .for_each(|blob| {
-                output_tx
-                    .send(blob.clone())
-                    .expect("allout receiver dropped")
-            });
+            .cloned()
+        {
+            if let Err(_) = output_tx.send(blob) {
+                // if receiver drops, that's fine, just ignore the error and stop sending
+                // skip adding the subscriber too
+                return;
+            }
+        }
         if self.output_pending {
             self.stdout_subscribers.push(output_tx.clone());
             self.stderr_subscribers.push(output_tx);
