@@ -3,11 +3,13 @@ mod messages;
 
 use self::{
     actor::JobCoordinator,
-    messages::CoordinatorMessage::{self, GetStatus, StartJob, StopJob},
+    messages::CoordinatorMessage::{
+        self, GetStatus, StartJob, StopJob, StreamAll, StreamStderr, StreamStdout,
+    },
 };
-use crate::errors;
 use crate::events::JobStatus;
 use crate::types::{Args, Dir, Envs, JobId, Program};
+use crate::{errors, types::OutputBlob};
 use std::io;
 use tokio::sync::{mpsc, oneshot};
 
@@ -70,6 +72,51 @@ impl JobCoordinatorHandle {
             })
             .await
             .expect("JobCoordinator exited");
-        rx.await.expect("Worker exited")
+        rx.await.expect("JobCoordinator exited")
+    }
+
+    pub async fn stream_stdout(
+        &self,
+        job_id: JobId,
+    ) -> errors::Result<mpsc::UnboundedReceiver<OutputBlob>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(StreamStdout {
+                job_id,
+                response: tx,
+            })
+            .await
+            .expect("JobCoordinator exited");
+        rx.await.expect("JobCoordinator exited")
+    }
+
+    pub async fn stream_stderr(
+        &self,
+        job_id: JobId,
+    ) -> errors::Result<mpsc::UnboundedReceiver<OutputBlob>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(StreamStderr {
+                job_id,
+                response: tx,
+            })
+            .await
+            .expect("JobCoordinator exited");
+        rx.await.expect("JobCoordinator exited")
+    }
+
+    pub async fn stream_all(
+        &self,
+        job_id: JobId,
+    ) -> errors::Result<mpsc::UnboundedReceiver<OutputBlob>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(StreamAll {
+                job_id,
+                response: tx,
+            })
+            .await
+            .expect("JobCoordinator exited");
+        rx.await.expect("JobCoordinator exited")
     }
 }

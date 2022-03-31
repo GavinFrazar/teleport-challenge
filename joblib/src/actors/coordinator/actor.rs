@@ -1,4 +1,4 @@
-use super::messages::{CoordinatorMessage, StreamRequest};
+use super::messages::CoordinatorMessage;
 use crate::actors::{broadcaster::BroadcasterHandle, worker::WorkerHandle};
 use crate::errors::{self, JobError};
 use crate::events::JobStatus;
@@ -41,8 +41,14 @@ impl JobCoordinator {
                 GetStatus { job_id, response } => {
                     self.get_job_status(job_id, response);
                 }
-                GetOutput { request, response } => {
-                    self.get_job_output(request, response);
+                StreamStdout { job_id, response } => {
+                    self.stream_stdout(job_id, response);
+                }
+                StreamStderr { job_id, response } => {
+                    self.stream_stderr(job_id, response);
+                }
+                StreamAll { job_id, response } => {
+                    self.stream_all(job_id, response);
                 }
             }
         }
@@ -58,14 +64,20 @@ impl JobCoordinator {
     ) {
         let (output_tx, output_rx) = mpsc::unbounded_channel(); // channel for piping child process output
 
-        // TODO: add broadcaster to receive the child output
+        // spawn the worker with the sending end of the output channel.
         match WorkerHandle::spawn(output_tx, cmd, args, dir, envs) {
             Ok(worker) => {
+                // broadcaster will receive events from the child process via this receiver channel
+                let broadcaster = BroadcasterHandle::spawn(output_rx);
+
                 let job_id = uuid::Uuid::new_v4();
                 self.workers.insert(job_id, worker);
+                self.broadcasters.insert(job_id, broadcaster);
                 let _ = response.send(Ok(job_id));
             }
             Err(e) => {
+                // if spawning child process fails, we don't insert the worker broadcaster handles in our map.
+                // no actors spawn in this case.
                 let _ = response.send(Err(e));
             }
         }
@@ -92,11 +104,45 @@ impl JobCoordinator {
         }
     }
 
-    fn get_job_output(
+    fn stream_stdout(
         &mut self,
-        request: StreamRequest,
-        response: oneshot::Sender<mpsc::UnboundedReceiver<OutputBlob>>,
+        job_id: JobId,
+        response: oneshot::Sender<errors::Result<mpsc::UnboundedReceiver<OutputBlob>>>,
     ) {
-        todo!()
+        let (subscriber_tx, subscriber_rx) = mpsc::unbounded_channel();
+        if let Some(broadcaster) = self.broadcasters.get(&job_id) {
+            broadcaster.stream_stdout(subscriber_tx);
+            let _ = response.send(Ok(subscriber_rx));
+        } else {
+            let _ = response.send(Err(JobError::NotFound));
+        }
+    }
+
+    fn stream_stderr(
+        &mut self,
+        job_id: JobId,
+        response: oneshot::Sender<errors::Result<mpsc::UnboundedReceiver<OutputBlob>>>,
+    ) {
+        let (subscriber_tx, subscriber_rx) = mpsc::unbounded_channel();
+        if let Some(broadcaster) = self.broadcasters.get(&job_id) {
+            broadcaster.stream_stderr(subscriber_tx);
+            let _ = response.send(Ok(subscriber_rx));
+        } else {
+            let _ = response.send(Err(JobError::NotFound));
+        }
+    }
+
+    fn stream_all(
+        &mut self,
+        job_id: JobId,
+        response: oneshot::Sender<errors::Result<mpsc::UnboundedReceiver<OutputBlob>>>,
+    ) {
+        let (subscriber_tx, subscriber_rx) = mpsc::unbounded_channel();
+        if let Some(broadcaster) = self.broadcasters.get(&job_id) {
+            broadcaster.stream_all(subscriber_tx);
+            let _ = response.send(Ok(subscriber_rx));
+        } else {
+            let _ = response.send(Err(JobError::NotFound));
+        }
     }
 }
