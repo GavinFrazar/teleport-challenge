@@ -5,7 +5,7 @@ use thiserror;
 pub enum Error {
     #[error("No such job exists")]
     DoesNotExist,
-    #[error("")]
+    #[error("Job already stopped")]
     AlreadyStopped,
 }
 
