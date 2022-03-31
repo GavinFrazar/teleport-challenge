@@ -2,8 +2,8 @@ mod actor;
 mod messages;
 
 use crate::error;
-use crate::events::{JobStatus, Output};
-use crate::types::{Args, Dir, Envs, Program};
+use crate::events::JobStatus;
+use crate::types::{Args, Dir, Envs, Output, Program};
 use actor::Actor;
 use messages::WorkerMessage;
 use std::{io, process::Stdio};

@@ -7,9 +7,9 @@ use self::{
         self, GetStatus, StartJob, StopJob, StreamAll, StreamStderr, StreamStdout,
     },
 };
-use crate::events::JobStatus;
+use crate::error;
+use crate::events::{JobStatus, OutputBlob};
 use crate::types::{Args, Dir, Envs, JobId, Program};
-use crate::{error, types::OutputBlob};
 use std::io;
 use tokio::sync::{mpsc, oneshot};
 

@@ -1,4 +1,4 @@
-use crate::types::OutputBlob;
+use crate::events::OutputBlob;
 use tokio::sync::mpsc;
 
 #[derive(Debug)]

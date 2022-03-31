@@ -1,5 +1,3 @@
-use crate::types::OutputBlob;
-
 #[derive(Clone, Copy, Debug)]
 pub enum JobStatus {
     Running,
@@ -7,8 +5,4 @@ pub enum JobStatus {
     Killed { signal: i32 },
 }
 
-#[derive(Clone)]
-pub enum Output {
-    Stdout(OutputBlob),
-    Stderr(OutputBlob),
-}
+pub type OutputBlob = bytes::Bytes;

@@ -1,8 +1,8 @@
 use super::messages::CoordinatorMessage;
 use crate::actors::{broadcaster::BroadcasterHandle, worker::WorkerHandle};
 use crate::error::{self, Error as JobError};
-use crate::events::JobStatus;
-use crate::types::{Args, Dir, Envs, JobId, OutputBlob, Program};
+use crate::events::{JobStatus, OutputBlob};
+use crate::types::{Args, Dir, Envs, JobId, Program};
 use std::{collections::HashMap, io};
 use tokio::sync::{mpsc, oneshot};
 

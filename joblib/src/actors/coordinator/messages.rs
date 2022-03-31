@@ -1,6 +1,6 @@
 use crate::error;
-use crate::events::JobStatus;
-use crate::types::{Args, Dir, Envs, JobId, OutputBlob, Program};
+use crate::events::{JobStatus, OutputBlob};
+use crate::types::{Args, Dir, Envs, JobId, Program};
 use std::io;
 use tokio::sync::{mpsc, oneshot};
 

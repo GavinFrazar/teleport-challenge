@@ -1,6 +1,7 @@
 use super::messages::WorkerMessage;
 use crate::error::Error as JobError;
-use crate::events::{JobStatus, Output};
+use crate::events::JobStatus;
+use crate::types::Output;
 
 use bytes::BytesMut;
 use futures::future::FutureExt;

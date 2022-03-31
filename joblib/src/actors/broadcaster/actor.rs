@@ -1,6 +1,6 @@
 use super::messages::StreamRequest;
-use crate::events::Output;
-use crate::types::OutputBlob;
+use crate::events::OutputBlob;
+use crate::types::Output;
 
 use tokio::select;
 use tokio::sync::mpsc;

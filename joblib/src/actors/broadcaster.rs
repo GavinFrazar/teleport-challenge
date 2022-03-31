@@ -1,6 +1,6 @@
 mod actor;
 mod messages;
-use crate::{events::Output, types::OutputBlob};
+use crate::{events::OutputBlob, types::Output};
 use actor::Actor;
 use messages::StreamRequest;
 

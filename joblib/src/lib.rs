@@ -1,6 +1,6 @@
 mod actors;
 pub mod error;
-mod events;
+pub mod events;
 pub mod types;
 
 // re-export the job coord handle as if it is the job coordinator itself.
