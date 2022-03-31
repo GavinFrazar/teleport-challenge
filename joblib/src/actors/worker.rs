@@ -44,7 +44,7 @@ impl WorkerHandle {
         });
     }
 
-    pub fn stop(&self) {
-        let _ = self.sender.send(WorkerMessage::Stop);
+    pub fn stop(&self, response: oneshot::Sender<error::Result<()>>) {
+        let _ = self.sender.send(WorkerMessage::Stop { response });
     }
 }

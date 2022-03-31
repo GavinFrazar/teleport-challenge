@@ -21,34 +21,39 @@ pub struct Actor {
 impl Actor {
     pub fn spawn(
         inbox: mpsc::UnboundedReceiver<WorkerMessage>,
-        output_tx: mpsc::UnboundedSender<Output>,
+        broadcast_tx: mpsc::UnboundedSender<Output>,
         child: Child,
     ) {
         let (kill_tx, kill_rx) = oneshot::channel();
-        let actor = Self {
-            inbox,
-            kill_tx: Some(kill_tx),
-            job_status: JobStatus::Running,
-        };
-        tokio::spawn(async move { actor.run(output_tx, kill_rx, child).await });
+        tokio::spawn(async move {
+            let actor = Self {
+                inbox,
+                kill_tx: Some(kill_tx),
+                job_status: JobStatus::Running,
+            };
+            actor.run(broadcast_tx, kill_rx, child).await;
+        });
     }
 
     pub async fn run(
         mut self,
-        output_tx: mpsc::UnboundedSender<Output>,
+        broadcast_tx: mpsc::UnboundedSender<Output>,
         kill_rx: oneshot::Receiver<()>,
         mut child: tokio::process::Child,
     ) {
         let (child_exit_tx, child_exit_rx) = oneshot::channel();
-        let mut stdout = child.stdout.take().expect("child stdout not piped"); //TODO: error handling
-        let mut stderr = child.stderr.take().expect("child stderr not piped"); // could just optionally pipe
+        // grab stdout and stderr, if they've been piped
+        let maybe_stdout = child.stdout.take();
+        let maybe_stderr = child.stderr.take();
         let mut kill_rx = kill_rx.fuse();
+
+        // spawn the job
         tokio::spawn(async move {
             loop {
                 select! {
                     // listen for a kill signal
                     _ = &mut kill_rx => {
-                        let _ = child.start_kill();
+                        let _ = child.kill().await;
                     }
                     // wait for child pid to finish and cleanup its resources
                     exit_status = child.wait() => {
@@ -66,42 +71,45 @@ impl Actor {
             }
         });
 
-        let stdout_tx = output_tx.clone();
-        tokio::spawn(async move {
-            let mut buf = BytesMut::with_capacity(4096);
-            loop {
-                let read_result = stdout.read_buf(&mut buf).await;
-                match read_result {
-                    Ok(n) if n > 0 => {
-                        // move the bytes out of buf and into a message
-                        let msg = Output::Stdout(buf.split().freeze());
-                        let _ = stdout_tx.send(msg);
-                    }
-                    _ => {
-                        break;
-                    }
-                }
-            }
-        });
-
-        let stderr_tx = output_tx;
-        tokio::spawn(async move {
-            let mut buf = BytesMut::with_capacity(4096);
-            loop {
-                let read_result = stderr.read_buf(&mut buf).await;
-                match read_result {
-                    Ok(n) if n > 0 => {
-                        // move the bytes out of buf and into a message
-                        let msg = Output::Stderr(buf.split().freeze());
-                        let _ = stderr_tx.send(msg);
-                    }
-                    _ => {
-                        break;
+        // pipe stdout to the broadcaster
+        if let Some(mut stdout) = maybe_stdout {
+            let stdout_tx = broadcast_tx.clone();
+            tokio::spawn(async move {
+                let mut buf = BytesMut::with_capacity(4096);
+                loop {
+                    match stdout.read_buf(&mut buf).await {
+                        Ok(n) if n > 0 => {
+                            // move the bytes out of buf and into a message
+                            let msg = Output::Stdout(buf.split().freeze());
+                            let _ = stdout_tx.send(msg);
+                        }
+                        _ => {
+                            break;
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
 
+        // pipe stderr to the broadcaster
+        if let Some(mut stderr) = maybe_stderr {
+            let stderr_tx = broadcast_tx;
+            tokio::spawn(async move {
+                let mut buf = BytesMut::with_capacity(4096);
+                loop {
+                    match stderr.read_buf(&mut buf).await {
+                        Ok(n) if n > 0 => {
+                            // move the bytes out of buf and into a message
+                            let msg = Output::Stderr(buf.split().freeze());
+                            let _ = stderr_tx.send(msg);
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+            });
+        }
         self.handle_messages(child_exit_rx).await;
     }
 
@@ -116,14 +124,24 @@ impl Actor {
                             GetStatus { response } => {
                                 let _ = response.send(Ok(self.job_status));
                             }
-                            Stop => {
-                                self.kill_tx.take().map(|kill_tx| kill_tx.send(()));
+                            Stop { response } => {
+                                match (self.job_status, self.kill_tx.take()) {
+                                    (JobStatus::Running, Some(kill_tx)) => {
+                                        let _ = kill_tx.send(());
+                                        let _ = response.send(Ok(()));
+                                    }
+                                    _ =>  {
+                                        let _ = response.send(Err(JobError::AlreadyStopped));
+                                    }
+                                }
                             }
                         }
                     } else {
                         // actor handle dropped, make sure we kill the child process before we exit
-                        self.kill_tx.take().map(|kill_tx| kill_tx.send(()));
-                        break;
+                        if let Some(kill_tx) = self.kill_tx.take() {
+                            let _ = kill_tx.send(());
+                        }
+                        return;
                     }
                 }
                 exit_status = &mut child_exit_rx => {

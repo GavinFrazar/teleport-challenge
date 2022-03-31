@@ -85,8 +85,7 @@ impl JobCoordinator {
 
     fn stop_job(&mut self, job_id: JobId, response: oneshot::Sender<error::Result<()>>) {
         if let Some(worker) = self.workers.get(&job_id) {
-            worker.stop();
-            let _ = response.send(Ok(()));
+            worker.stop(response);
         } else {
             let _ = response.send(Err(JobError::DoesNotExist));
         }
