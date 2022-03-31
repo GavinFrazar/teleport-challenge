@@ -35,12 +35,13 @@ impl Actor {
     pub async fn run(
         mut self,
         output_tx: mpsc::UnboundedSender<Output>,
-        mut kill_rx: oneshot::Receiver<()>,
+        kill_rx: oneshot::Receiver<()>,
         mut child: tokio::process::Child,
     ) {
         let (child_exit_tx, child_exit_rx) = oneshot::channel();
         let mut stdout = child.stdout.take().expect("child stdout not piped"); //TODO: error handling
         let mut stderr = child.stderr.take().expect("child stderr not piped"); // could just optionally pipe
+        let mut kill_rx = kill_rx.fuse();
         tokio::spawn(async move {
             loop {
                 select! {
