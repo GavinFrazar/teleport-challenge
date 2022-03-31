@@ -2,14 +2,14 @@ use crate::types::OutputBlob;
 use tokio::sync::mpsc;
 
 #[derive(Debug)]
-pub enum Message {
-    StreamStdout {
+pub enum StreamRequest {
+    Stdout {
         subscriber: mpsc::UnboundedSender<OutputBlob>,
     },
-    StreamStderr {
+    Stderr {
         subscriber: mpsc::UnboundedSender<OutputBlob>,
     },
-    StreamAll {
+    All {
         subscriber: mpsc::UnboundedSender<OutputBlob>,
     },
 }

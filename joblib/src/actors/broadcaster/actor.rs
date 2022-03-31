@@ -1,4 +1,4 @@
-use super::messages::Message;
+use super::messages::StreamRequest;
 use crate::events::Output;
 use crate::types::OutputBlob;
 
@@ -6,7 +6,7 @@ use tokio::select;
 use tokio::sync::mpsc;
 
 pub struct Actor {
-    inbox: mpsc::UnboundedReceiver<Message>,
+    inbox: mpsc::UnboundedReceiver<StreamRequest>,
     output_rx: mpsc::UnboundedReceiver<Output>,
     output_buffer: Vec<Output>,
     stdout_subscribers: Vec<mpsc::UnboundedSender<OutputBlob>>,
@@ -16,7 +16,7 @@ pub struct Actor {
 
 impl Actor {
     pub fn spawn(
-        inbox: mpsc::UnboundedReceiver<Message>,
+        inbox: mpsc::UnboundedReceiver<StreamRequest>,
         output_rx: mpsc::UnboundedReceiver<Output>,
     ) {
         let actor = Actor {
@@ -31,35 +31,28 @@ impl Actor {
     }
 
     async fn run(mut self) {
+        use self::StreamRequest::*;
         loop {
             select! {
-                Some(msg) = self.inbox.recv() => {
-                    use self::Message::*;
-                    match msg {
-                        StreamStdout { subscriber } => self.stream_stdout(subscriber),
-                        StreamStderr { subscriber  } => self.stream_stderr(subscriber),
-                        StreamAll { subscriber } => self.stream_all(subscriber),
+                maybe_stream_req = self.inbox.recv() => {
+                    if let Some(req) = maybe_stream_req {
+                        match req {
+                            Stdout { subscriber } => self.stream_stdout(subscriber),
+                            Stderr { subscriber  } => self.stream_stderr(subscriber),
+                            All { subscriber } => self.stream_all(subscriber),
+                        }
+                    } else {
+                        // actor handle dropped, make sure we drop our senders before exiting
+                        self.stdout_subscribers.clear();
+                        self.stderr_subscribers.clear();
+                        self.output_pending = false;
+                        return;
                     }
                 }
                 maybe_output = self.output_rx.recv(), if self.output_pending => {
                     match maybe_output {
                         Some(output) => {
-                            self.output_buffer.push(output.clone());
-                            use self::Output::*;
-                            match output {
-                                Stdout(blob) => {
-                                    self.stdout_subscribers.retain(|sub| {
-                                        // only retain subscribers who have not dropped
-                                        sub.send(blob.clone()).is_ok()
-                                    });
-                                }
-                                Stderr(blob) => {
-                                    self.stderr_subscribers.retain(|sub| {
-                                        // only retain subscribers who have not dropped
-                                        sub.send(blob.clone()).is_ok()
-                                    });
-                                }
-                            }
+                            self.broadcast(output);
                         }
                         None => {
                             self.stdout_subscribers.clear();
@@ -68,6 +61,23 @@ impl Actor {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    fn broadcast(&mut self, output: Output) {
+        self.output_buffer.push(output.clone());
+        use self::Output::*;
+        match output {
+            Stdout(blob) => {
+                // only retain subscribers who have not dropped
+                self.stdout_subscribers
+                    .retain(|sub| sub.send(blob.clone()).is_ok());
+            }
+            Stderr(blob) => {
+                // only retain subscribers who have not dropped
+                self.stderr_subscribers
+                    .retain(|sub| sub.send(blob.clone()).is_ok());
             }
         }
     }

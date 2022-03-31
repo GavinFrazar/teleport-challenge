@@ -2,7 +2,7 @@ mod actor;
 mod messages;
 use crate::{events::Output, types::OutputBlob};
 use actor::Actor;
-use messages::Message;
+use messages::StreamRequest;
 
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
@@ -11,7 +11,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 /// This struct is actually an actor handle. The real work is done in the actor spawned by `Broadcaster::new`.
 #[derive(Clone)]
 pub struct BroadcasterHandle {
-    sender: mpsc::UnboundedSender<Message>,
+    sender: mpsc::UnboundedSender<StreamRequest>,
 }
 
 impl BroadcasterHandle {
@@ -22,14 +22,14 @@ impl BroadcasterHandle {
     }
 
     pub fn stream_stdout(&self, subscriber: UnboundedSender<OutputBlob>) {
-        let _ = self.sender.send(Message::StreamStdout { subscriber });
+        let _ = self.sender.send(StreamRequest::Stdout { subscriber });
     }
 
     pub fn stream_stderr(&self, subscriber: UnboundedSender<OutputBlob>) {
-        let _ = self.sender.send(Message::StreamStderr { subscriber });
+        let _ = self.sender.send(StreamRequest::Stderr { subscriber });
     }
 
     pub fn stream_all(&self, subscriber: UnboundedSender<OutputBlob>) {
-        let _ = self.sender.send(Message::StreamAll { subscriber });
+        let _ = self.sender.send(StreamRequest::All { subscriber });
     }
 }
