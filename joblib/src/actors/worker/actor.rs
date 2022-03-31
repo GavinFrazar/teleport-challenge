@@ -42,14 +42,17 @@ impl Actor {
         kill_rx: oneshot::Receiver<()>,
         mut child: tokio::process::Child,
     ) {
+        // set up a channel to report when the child exits to the actor
         let (child_exit_tx, child_exit_rx) = oneshot::channel();
+
         // grab stdout and stderr, if they've been piped
         let maybe_stdout = child.stdout.take();
         let maybe_stderr = child.stderr.take();
-        let mut kill_rx = kill_rx.fuse();
 
         // spawn the job
         tokio::spawn(async move {
+            // fuse the kill_rx so it doesnt panic when we select it multiple times
+            let mut kill_rx = kill_rx.fuse();
             loop {
                 select! {
                     // listen for a kill signal
@@ -111,11 +114,15 @@ impl Actor {
                 }
             });
         }
+
+        // start listening for messages to the actor
         self.handle_messages(child_exit_rx).await;
     }
 
     async fn handle_messages(&mut self, child_exit_rx: oneshot::Receiver<JobStatus>) {
         use WorkerMessage::*;
+
+        // fuse the child_exit_rx so we can select it in a loop
         let mut child_exit_rx = child_exit_rx.fuse();
         loop {
             select! {

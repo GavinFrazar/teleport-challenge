@@ -15,22 +15,26 @@ use tokio::sync::{mpsc, oneshot};
 
 /// A `JobCoordinator` which provides functionality for managing jobs and querying job state.
 ///
-/// This struct is actually an actor handle, the real work is done in the actor spawned by `JobCoordinator::new`,
+/// This struct is actually an actor handle, the real work is done in the actor spawned by `JobCoordinator::spawn`,
 /// but from the user perspective all that matters is that this struct provides methods for managing jobs.
 /// The actor-handle abstraction allows this struct to be cloned freely in a multi-thread async context,
-/// without requiring an Arc<Mutex> or any other means of synchronization.
+/// without requiring an `Arc<Mutex>` or any other means of synchronization.
 #[derive(Clone)]
 pub struct JobCoordinatorHandle {
     sender: mpsc::Sender<CoordinatorMessage>,
 }
 
 impl JobCoordinatorHandle {
-    pub fn spawn(capacity: usize) -> Self {
-        let (sender, receiver) = mpsc::channel(capacity);
+    /// Spawn a new coordinator.
+    ///
+    /// Specify the capacity for the coordinator's message queue. This limits the build-up of inbound messages.
+    pub fn spawn(message_capacity: usize) -> Self {
+        let (sender, receiver) = mpsc::channel(message_capacity);
         JobCoordinator::spawn(receiver);
         Self { sender }
     }
 
+    /// start a new job.
     // TODO: make these args more generic
     pub async fn start_job(
         &self,
@@ -51,6 +55,7 @@ impl JobCoordinatorHandle {
         rx.await.expect("JobCoordinator exited")
     }
 
+    /// Stop a job. Returns a joblib::error::Result which will be Error
     pub async fn stop_job(&self, job_id: JobId) -> error::Result<()> {
         let (tx, rx) = oneshot::channel();
         self.sender

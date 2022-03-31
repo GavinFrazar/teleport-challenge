@@ -25,6 +25,7 @@ impl WorkerHandle {
         dir: Dir,
         envs: Envs,
     ) -> io::Result<Self> {
+        // spawn the child process but dont await it yet
         let mut command = process::Command::new(cmd);
         let child = command
             .args(args)
@@ -33,6 +34,7 @@ impl WorkerHandle {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
+
         let (sender, inbox) = mpsc::unbounded_channel();
         Actor::spawn(inbox, output_tx, child);
         Ok(Self { sender })

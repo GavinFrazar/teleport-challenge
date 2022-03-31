@@ -7,8 +7,8 @@ use tokio::sync::mpsc;
 
 pub struct Actor {
     inbox: mpsc::UnboundedReceiver<StreamRequest>,
-    output_rx: mpsc::UnboundedReceiver<Output>,
-    output_buffer: Vec<Output>,
+    output_rx: mpsc::UnboundedReceiver<Output>, // channel broadcaster gets Output events from
+    output_buffer: Vec<Output>, // remember all Output events we received in the same order we got them
     stdout_subscribers: Vec<mpsc::UnboundedSender<OutputBlob>>,
     stderr_subscribers: Vec<mpsc::UnboundedSender<OutputBlob>>,
     output_pending: bool,
@@ -25,7 +25,7 @@ impl Actor {
             output_buffer: Vec::new(),
             stdout_subscribers: Vec::new(),
             stderr_subscribers: Vec::new(),
-            output_pending: true,
+            output_pending: true, // keep listening for output? keep adding stream subscribers?
         };
         tokio::spawn(async move { actor.run().await });
     }
@@ -52,11 +52,14 @@ impl Actor {
                 maybe_output = self.output_rx.recv(), if self.output_pending => {
                     match maybe_output {
                         Some(output) => {
-                            self.broadcast(output);
+                            self.broadcast(output); // update the subscribers
                         }
                         None => {
+                            // output_tx closed/dropped
+                            // clear the subscribers so they are notified that no more output is coming.
                             self.stdout_subscribers.clear();
                             self.stderr_subscribers.clear();
+                            // we can stop listening for output
                             self.output_pending = false;
                         }
                     }
@@ -66,7 +69,9 @@ impl Actor {
     }
 
     fn broadcast(&mut self, output: Output) {
+        // record the event
         self.output_buffer.push(output.clone());
+
         use self::Output::*;
         match output {
             Stdout(blob) => {
