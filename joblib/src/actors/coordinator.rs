@@ -25,13 +25,13 @@ pub struct JobCoordinatorHandle {
 }
 
 impl JobCoordinatorHandle {
-    pub fn spawn() -> Self {
-        let (sender, receiver) = mpsc::channel(32);
+    pub fn spawn(capacity: usize) -> Self {
+        let (sender, receiver) = mpsc::channel(capacity);
         JobCoordinator::spawn(receiver);
         Self { sender }
     }
 
-    /// TODO: make these args more generic
+    // TODO: make these args more generic
     pub async fn start_job(
         &self,
         cmd: Program,
