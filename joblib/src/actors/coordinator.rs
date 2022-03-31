@@ -25,7 +25,7 @@ pub struct JobCoordinatorHandle {
 }
 
 impl JobCoordinatorHandle {
-    pub fn new() -> Self {
+    pub fn spawn() -> Self {
         let (sender, receiver) = mpsc::channel(32);
         JobCoordinator::spawn(receiver);
         Self { sender }
