@@ -92,7 +92,7 @@ impl Actor {
             })
             .cloned()
         {
-            if let Err(_) = output_tx.send(blob) {
+            if output_tx.send(blob).is_err() {
                 // if receiver drops, that's fine, just ignore the error and stop sending
                 // skip adding the subscriber too
                 return;
@@ -113,7 +113,7 @@ impl Actor {
             })
             .cloned()
         {
-            if let Err(_) = output_tx.send(blob) {
+            if output_tx.send(blob).is_err() {
                 // if receiver drops, that's fine, just ignore the error and stop sending
                 // skip adding the subscriber too
                 return;
@@ -128,12 +128,12 @@ impl Actor {
         for blob in self
             .output_buffer
             .iter()
-            .filter_map(|output| match output {
-                Output::Stdout(blob) | Output::Stderr(blob) => Some(blob),
+            .map(|output| match output {
+                Output::Stdout(blob) | Output::Stderr(blob) => blob,
             })
             .cloned()
         {
-            if let Err(_) = output_tx.send(blob) {
+            if output_tx.send(blob).is_err() {
                 // if receiver drops, that's fine, just ignore the error and stop sending
                 // skip adding the subscriber too
                 return;
