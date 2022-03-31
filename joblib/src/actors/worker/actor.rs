@@ -1,7 +1,7 @@
 use super::messages::WorkerMessage;
 use crate::events::{JobStatus, Output};
 
-use bytes::{Bytes, BytesMut};
+use bytes::BytesMut;
 use futures::future::FutureExt;
 use std::os::unix::process::ExitStatusExt;
 use tokio::{
@@ -29,7 +29,7 @@ impl Actor {
             kill_tx: Some(kill_tx),
             job_status: JobStatus::Running,
         };
-        tokio::spawn(async move { actor.run(output_tx, kill_rx, child) });
+        tokio::spawn(async move { actor.run(output_tx, kill_rx, child).await });
     }
 
     pub async fn run(
