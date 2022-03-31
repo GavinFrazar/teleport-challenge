@@ -8,7 +8,7 @@ pub use actors::coordinator::JobCoordinatorHandle as JobCoordinator;
 pub use events::JobStatus;
 
 #[cfg(test)]
-mod tests {
+mod joblib_tests {
     use super::*;
     use crate::error::Error as JobError;
 
