@@ -51,7 +51,6 @@ impl Actor {
                     }
                     // wait for child pid to finish and cleanup its resources
                     exit_status = child.wait() => {
-                        println!("child finished"); // TODO: cleanup debugging print
                         let exit_status = exit_status.expect("child wait: io error"); // TODO: error handling
                         if let Some(code) = exit_status.code() {
                             let _ = child_exit_tx.send(JobStatus::Exited { code });
@@ -73,11 +72,11 @@ impl Actor {
                 let read_result = stdout.read_buf(&mut buf).await;
                 match read_result {
                     Ok(n) if n > 0 => {
-                        let output = Output::Stdout(Bytes::copy_from_slice(&buf[..n]));
-                        let _ = stdout_tx.send(output);
+                        // move the bytes out of buf and into a message
+                        let msg = Output::Stdout(buf.split().freeze());
+                        let _ = stdout_tx.send(msg);
                     }
                     _ => {
-                        println!("child stdout finished!"); // TODO: remove debug prints
                         break;
                     }
                 }
@@ -91,11 +90,11 @@ impl Actor {
                 let read_result = stderr.read_buf(&mut buf).await;
                 match read_result {
                     Ok(n) if n > 0 => {
-                        let output = Output::Stdout(Bytes::copy_from_slice(&buf[..n]));
-                        let _ = stderr_tx.send(output);
+                        // move the bytes out of buf and into a message
+                        let msg = Output::Stderr(buf.split().freeze());
+                        let _ = stderr_tx.send(msg);
                     }
                     _ => {
-                        println!("child stderr finished!"); // TODO: remove debug prints
                         break;
                     }
                 }
