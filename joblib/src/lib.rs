@@ -5,14 +5,13 @@ pub mod types;
 
 // re-export the job coord handle as if it is the job coordinator itself.
 pub use actors::coordinator::JobCoordinatorHandle as JobCoordinator;
-pub use events::JobStatus;
 
 #[cfg(test)]
 mod joblib_tests {
-    use futures::future::join_all;
-
     use super::*;
     use crate::error::Error as JobError;
+    use crate::events::JobStatus;
+    use futures::future::join_all;
 
     #[tokio::test]
     async fn basic() {
