@@ -13,17 +13,26 @@ mod tests {
 
     #[tokio::test]
     async fn basic() {
-        let coordinator = JobCoordinator::new();
-        let jid = coordinator
+        let coordinator = JobCoordinator::spawn();
+        let echo_str = "hello world!";
+        let no_trailing_newline = "-n";
+        let job_id = coordinator
             .start_job(
                 "echo".into(),
-                vec!["hello world!".into()],
+                vec![no_trailing_newline.to_string(), echo_str.to_string()],
                 "/tmp".into(),
                 vec![],
             )
-            .await;
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-        println!("Started job {}", jid.expect("job start error"));
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            .await
+            .expect("job start err");
+        let mut output = coordinator
+            .stream_all(job_id)
+            .await
+            .expect("failed to grab stdout/stderr for job");
+        let mut output_bytes = vec![];
+        while let Some(blob) = output.recv().await {
+            output_bytes.extend(blob);
+        }
+        assert_eq!(String::from_utf8_lossy(&output_bytes), echo_str);
     }
 }
