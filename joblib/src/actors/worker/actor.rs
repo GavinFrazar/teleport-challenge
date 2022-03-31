@@ -1,4 +1,5 @@
 use super::messages::WorkerMessage;
+use crate::error::Error as JobError;
 use crate::events::{JobStatus, Output};
 
 use bytes::BytesMut;

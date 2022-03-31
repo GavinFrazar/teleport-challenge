@@ -1,6 +1,6 @@
 use super::messages::CoordinatorMessage;
 use crate::actors::{broadcaster::BroadcasterHandle, worker::WorkerHandle};
-use crate::errors::{self, JobError};
+use crate::error::{self, Error as JobError};
 use crate::events::JobStatus;
 use crate::types::{Args, Dir, Envs, JobId, OutputBlob, Program};
 use std::{collections::HashMap, io};
@@ -83,66 +83,66 @@ impl JobCoordinator {
         }
     }
 
-    fn stop_job(&mut self, job_id: JobId, response: oneshot::Sender<errors::Result<()>>) {
+    fn stop_job(&mut self, job_id: JobId, response: oneshot::Sender<error::Result<()>>) {
         if let Some(worker) = self.workers.get(&job_id) {
             worker.stop();
             let _ = response.send(Ok(()));
         } else {
-            let _ = response.send(Err(JobError::NotFound));
+            let _ = response.send(Err(JobError::DoesNotExist));
         }
     }
 
     fn get_job_status(
         &mut self,
         job_id: JobId,
-        response: oneshot::Sender<errors::Result<JobStatus>>,
+        response: oneshot::Sender<error::Result<JobStatus>>,
     ) {
         if let Some(worker) = self.workers.get(&job_id) {
             worker.get_status(response);
         } else {
-            let _ = response.send(Err(JobError::NotFound));
+            let _ = response.send(Err(JobError::DoesNotExist));
         }
     }
 
     fn stream_stdout(
         &mut self,
         job_id: JobId,
-        response: oneshot::Sender<errors::Result<mpsc::UnboundedReceiver<OutputBlob>>>,
+        response: oneshot::Sender<error::Result<mpsc::UnboundedReceiver<OutputBlob>>>,
     ) {
         let (subscriber_tx, subscriber_rx) = mpsc::unbounded_channel();
         if let Some(broadcaster) = self.broadcasters.get(&job_id) {
             broadcaster.stream_stdout(subscriber_tx);
             let _ = response.send(Ok(subscriber_rx));
         } else {
-            let _ = response.send(Err(JobError::NotFound));
+            let _ = response.send(Err(JobError::DoesNotExist));
         }
     }
 
     fn stream_stderr(
         &mut self,
         job_id: JobId,
-        response: oneshot::Sender<errors::Result<mpsc::UnboundedReceiver<OutputBlob>>>,
+        response: oneshot::Sender<error::Result<mpsc::UnboundedReceiver<OutputBlob>>>,
     ) {
         let (subscriber_tx, subscriber_rx) = mpsc::unbounded_channel();
         if let Some(broadcaster) = self.broadcasters.get(&job_id) {
             broadcaster.stream_stderr(subscriber_tx);
             let _ = response.send(Ok(subscriber_rx));
         } else {
-            let _ = response.send(Err(JobError::NotFound));
+            let _ = response.send(Err(JobError::DoesNotExist));
         }
     }
 
     fn stream_all(
         &mut self,
         job_id: JobId,
-        response: oneshot::Sender<errors::Result<mpsc::UnboundedReceiver<OutputBlob>>>,
+        response: oneshot::Sender<error::Result<mpsc::UnboundedReceiver<OutputBlob>>>,
     ) {
         let (subscriber_tx, subscriber_rx) = mpsc::unbounded_channel();
         if let Some(broadcaster) = self.broadcasters.get(&job_id) {
             broadcaster.stream_all(subscriber_tx);
             let _ = response.send(Ok(subscriber_rx));
         } else {
-            let _ = response.send(Err(JobError::NotFound));
+            let _ = response.send(Err(JobError::DoesNotExist));
         }
     }
 }

@@ -9,7 +9,7 @@ use self::{
 };
 use crate::events::JobStatus;
 use crate::types::{Args, Dir, Envs, JobId, Program};
-use crate::{errors, types::OutputBlob};
+use crate::{error, types::OutputBlob};
 use std::io;
 use tokio::sync::{mpsc, oneshot};
 
@@ -51,7 +51,7 @@ impl JobCoordinatorHandle {
         rx.await.expect("JobCoordinator exited")
     }
 
-    pub async fn stop_job(&self, job_id: JobId) -> errors::Result<()> {
+    pub async fn stop_job(&self, job_id: JobId) -> error::Result<()> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(StopJob {
@@ -63,7 +63,7 @@ impl JobCoordinatorHandle {
         rx.await.expect("JobCoordinator exited")
     }
 
-    pub async fn get_job_status(&self, job_id: JobId) -> errors::Result<JobStatus> {
+    pub async fn get_job_status(&self, job_id: JobId) -> error::Result<JobStatus> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(GetStatus {
@@ -78,7 +78,7 @@ impl JobCoordinatorHandle {
     pub async fn stream_stdout(
         &self,
         job_id: JobId,
-    ) -> errors::Result<mpsc::UnboundedReceiver<OutputBlob>> {
+    ) -> error::Result<mpsc::UnboundedReceiver<OutputBlob>> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(StreamStdout {
@@ -93,7 +93,7 @@ impl JobCoordinatorHandle {
     pub async fn stream_stderr(
         &self,
         job_id: JobId,
-    ) -> errors::Result<mpsc::UnboundedReceiver<OutputBlob>> {
+    ) -> error::Result<mpsc::UnboundedReceiver<OutputBlob>> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(StreamStderr {
@@ -108,7 +108,7 @@ impl JobCoordinatorHandle {
     pub async fn stream_all(
         &self,
         job_id: JobId,
-    ) -> errors::Result<mpsc::UnboundedReceiver<OutputBlob>> {
+    ) -> error::Result<mpsc::UnboundedReceiver<OutputBlob>> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(StreamAll {

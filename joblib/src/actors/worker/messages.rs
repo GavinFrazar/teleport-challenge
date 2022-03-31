@@ -1,10 +1,12 @@
-use crate::errors;
+use crate::error;
 use crate::events::JobStatus;
 use tokio::sync::oneshot;
 
 pub enum WorkerMessage {
     GetStatus {
-        response: oneshot::Sender<errors::Result<JobStatus>>,
+        response: oneshot::Sender<error::Result<JobStatus>>,
     },
-    Stop,
+    Stop {
+        response: oneshot::Sender<error::Result<()>>,
+    },
 }
