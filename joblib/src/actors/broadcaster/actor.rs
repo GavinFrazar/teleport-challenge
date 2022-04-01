@@ -42,10 +42,7 @@ impl Actor {
                             All { subscriber } => self.stream_all(subscriber),
                         }
                     } else {
-                        // actor handle dropped, make sure we drop our senders before exiting
-                        self.stdout_subscribers.clear();
-                        self.stderr_subscribers.clear();
-                        self.output_pending = false;
+                        // actor handle dropped, broadcaster actor can exit now
                         return;
                     }
                 }
