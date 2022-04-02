@@ -4,7 +4,7 @@ See the [design document](design.md)
 
 ## joblib
 
-See [joblib](joblib/README.md)
+A library for managing jobs. See [the joblib README](joblib/README.md)
 
 ## Tests
 
