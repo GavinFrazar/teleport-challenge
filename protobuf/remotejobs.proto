@@ -1,7 +1,7 @@
 syntax = "proto3";
-package jobservice;
+package remotejobs;
 
-service JobService {
+service RemoteJobs {
     rpc StartJob(StartRequest) returns (StartResponse);
     rpc StopJob(StopRequest) returns (StopResponse);
     rpc QueryStatus(StatusRequest) returns (StatusResponse);
@@ -16,17 +16,17 @@ message StartRequest {
 }
 
 message StartResponse {
-  uint64 id = 1;
+  bytes id = 1;
 }
 
 message StopRequest {
-  uint64 id = 1;
+  bytes id = 1;
 }
 
 message StopResponse{}
 
 message StatusRequest {
-  uint64 id = 1;
+  bytes id = 1;
 }
 
 message StatusResponse {
@@ -44,7 +44,7 @@ message StatusResponse {
 }
 
 message OutputRequest {
-  uint64 id = 1;
+  bytes id = 1;
   enum Type {
     STDOUT = 0;
     STDERR = 1;

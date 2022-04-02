@@ -1,1 +1,1 @@
-tonic::include_proto!("jobservice");
+tonic::include_proto!("remotejobs");
