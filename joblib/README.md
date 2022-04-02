@@ -46,5 +46,5 @@ There a few places in joblib where it just calls `.expect` on a result which is 
 
 ### Tests
 
-There are tests in joblib for basic functionality. They can be found in [lib.rs](joblib/src/lib.rs)
+There are tests in joblib for basic functionality. They can be found in [lib.rs](src/lib.rs)
 
