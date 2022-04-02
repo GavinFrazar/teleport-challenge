@@ -1,7 +1,5 @@
 # joblib
 
-This prototype provides a job management library - joblib.
-
 joblib is designed as an actor system. There are 3 types of actor: `JobCoordinator`, `Worker`, and `Broadcaster`, but only `JobCoordinator` is exposed by the public API.
 
 The `JobCoordinator` is `Send` + `Sync` + `Unpin` + `Clone` and can be freely used from multiple threads in an async context without `Arc<Mutex>`. The reason this is possible is that `JobCoordinator` is actually an actor handle, not the actor itself. It just sends messages across a channel. The actor maintains an in-memory database of jobs by `JobId`. It starts one worker and one broadcaster per job. The worker and broadcaster are likewise just handles to actors.
