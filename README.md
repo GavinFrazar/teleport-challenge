@@ -4,7 +4,7 @@ See the [design document](design.md)
 
 ## joblib
 
-A library for managing jobs. See [the joblib README](joblib/README.md)
+This prototype provides a job management library - joblib. See [the joblib README](joblib/README.md)
 
 ## Tests
 
