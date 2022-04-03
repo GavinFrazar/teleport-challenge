@@ -6,3 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+protobuf = { path = "../protobuf" }
+joblib = { path = "../joblib" }
+bytes = "1.0"
+futures = "0.3"
+tokio = { version = "1.0", features = ["full"] }
+uuid = { version = "0.8", features = ["v4"] }
+thiserror = "1.0"
+tonic = { version = "0.6", features = ["tls"] }
+tokio-stream = "0.1"
+x509-parser = "0.13.1"
