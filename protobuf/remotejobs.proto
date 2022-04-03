@@ -16,41 +16,42 @@ message StartRequest {
 }
 
 message StartResponse {
-  bytes id = 1;
+  bytes job_id = 1;
 }
 
 message StopRequest {
-  bytes id = 1;
+  bytes job_id = 1;
 }
 
 message StopResponse{}
 
 message StatusRequest {
-  bytes id = 1;
+  bytes job_id = 1;
 }
 
 message StatusResponse {
-  message Running{}
-  message Exited {
-    oneof exitstatus {
+  message RunningType{}
+  message ExitedType {
       int32 code = 1;
-      int32 signal = 2;
-    }
   }
-  oneof jobstatus {
-    Running running = 1;
-    Exited exited = 2;
+  message KilledType {
+      int32 signal = 1;
+  }
+  oneof job_status {
+    RunningType running = 1;
+    ExitedType exited = 2;
+    KilledType killed = 3;
   }
 }
 
 message OutputRequest {
-  bytes id = 1;
-  enum Type {
+  bytes job_id = 1;
+  enum OutputType {
     STDOUT = 0;
     STDERR = 1;
     ALL = 2;
   }
-  Type type = 2;
+  OutputType output = 2;
 }
 
 message OutputResponse {
