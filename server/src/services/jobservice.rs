@@ -1,3 +1,6 @@
+mod authz;
+use self::authz::{AuthzDb, Permission, Scope};
+
 use joblib::types::JobId;
 use joblib::JobCoordinator;
 use protobuf::remote_jobs_server::RemoteJobs;
@@ -14,76 +17,91 @@ use tonic::{Request, Response, Status};
 
 use crate::UserExtension;
 
-type UserId = bytes::Bytes;
-type Roles = HashSet<Role>;
-type Permissions = HashMap<Scope, Roles>;
+pub type UserId = bytes::Bytes;
 type JobOwnerDb = HashMap<JobId, UserId>;
-type AuthzDb = HashMap<UserId, Permissions>;
 
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord)]
-enum Role {
-    TaskManager,
-    Analyst,
-}
-
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord)]
-enum Scope {
-    Owner,
-    All,
-}
-
-#[derive(Default)]
 // tonic wraps this in Arc anyway internally, so we don't need Arc
+#[derive(Default)]
 pub struct RemoteJobsService {
     coordinator: JobCoordinator,
     job_owners: Mutex<JobOwnerDb>,
     authz_db: AuthzDb, // immutable pre-populated mock db
 }
 
+enum ExistingJobAction {
+    StopJob,
+    QueryStatus,
+    StreamOutput,
+}
+
+enum Action {
+    StartJob,
+    ExistingJob {
+        job_id: JobId,
+        inner_action: ExistingJobAction,
+    },
+}
+
 impl RemoteJobsService {
     pub fn new(channel_capacity: usize) -> Self {
-        // Construct the mock db
-        let mut mock_db = AuthzDb::new();
-
-        // give "alice" permission to start jobs and stop jobs she owns
-        let mut alice_permissions = HashMap::new();
-        alice_permissions.insert(Scope::Owner, HashSet::from_iter(vec![Role::TaskManager]));
-        mock_db.insert("alice".into(), alice_permissions);
-
-        let mut bob_permissions = HashMap::new();
-        bob_permissions.insert(Scope::All, HashSet::from_iter(vec![Role::Analyst]));
-        mock_db.insert("bob".into(), bob_permissions);
-
-        let mut charlie_permissions = HashMap::new();
-        charlie_permissions.insert(Scope::All, HashSet::from_iter(vec![Role::TaskManager]));
-        mock_db.insert("charlie".into(), charlie_permissions);
-
+        let authz_db = AuthzDb::default();
         Self {
             coordinator: JobCoordinator::spawn(channel_capacity),
             job_owners: Mutex::new(JobOwnerDb::new()),
-            authz_db: mock_db,
+            authz_db,
         }
     }
 
     async fn is_authorized(&self, user_id: UserId, action: Action) -> bool {
         use Action::*;
-        if let Some(permissions) = self.authz_db.get(&user_id) {
-            let job_owner = match action {
-                StopJob { job_id } | QueryStatus { job_id } | StreamOutput { job_id } => {
-                    self.job_owners.lock().unwrap().get(&job_id).cloned()
+        use ExistingJobAction::*;
+        match action {
+            ExistingJob {
+                job_id,
+                inner_action,
+            } => {
+                let maybe_owner = self.job_owners.lock().unwrap().get(&job_id).cloned();
+                if let Some(job_owner) = maybe_owner {
+                    match inner_action {
+                        StopJob => {
+                            if job_owner == user_id {
+                                return self
+                                    .authz_db
+                                    .has_permission(user_id, Permission::StartOrStop);
+                            } else {
+                                return self.authz_db.has_scoped_permission(
+                                    user_id,
+                                    Scope::All,
+                                    Permission::StartOrStop,
+                                );
+                            }
+                        }
+                        QueryStatus | StreamOutput => {
+                            if job_owner == user_id {
+                                return self.authz_db.has_permission(user_id, Permission::Query);
+                            } else {
+                                return self.authz_db.has_scoped_permission(
+                                    user_id,
+                                    Scope::All,
+                                    Permission::Query,
+                                );
+                            }
+                        }
+                    }
                 }
-                _ => None,
-            };
+            }
+            StartJob => {
+                return self
+                    .authz_db
+                    .has_permission(user_id, Permission::StartOrStop)
+            }
         }
+
+        // reject anything else as unauthorized
+        // NOTE: if the user id doesnt exist, or the job id doesnt exist, we reject those as unauth --
+        //       -- dont leak info! Although I won't go as far as hardening this against timing attacks.
         false
     }
-}
-
-enum Action {
-    StartJob,
-    StopJob { job_id: JobId },
-    QueryStatus { job_id: JobId },
-    StreamOutput { job_id: JobId },
 }
 
 #[tonic::async_trait]
