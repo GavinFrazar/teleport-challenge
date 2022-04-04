@@ -11,7 +11,6 @@ use protobuf::{
     OutputRequest, OutputResponse, StartRequest, StartResponse, StatusRequest, StatusResponse,
     StopRequest, StopResponse,
 };
-
 use std::{collections::HashMap, pin::Pin, sync::Mutex};
 use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
 use tonic::{self, Request, Response, Status};
