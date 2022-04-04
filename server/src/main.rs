@@ -4,7 +4,7 @@ mod services;
 pub use cert::UserExtension;
 use interceptors::cert;
 use protobuf::remote_jobs_server::RemoteJobsServer;
-use services::jobservice::RemoteJobsService;
+pub use services::jobservice::RemoteJobsService;
 use tokio_rustls::rustls::{
     self, ciphersuite::TLS13_AES_256_GCM_SHA384, AllowAnyAuthenticatedClient, RootCertStore,
     ServerConfig,

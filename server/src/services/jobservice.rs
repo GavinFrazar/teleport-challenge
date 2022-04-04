@@ -24,6 +24,11 @@ pub type UserId = String;
 /// Jobs are assigned an owner when they start - the `user id` of the user who started the job.
 ///
 /// Authorization is provided by a mock authz database interface
+///
+/// TODO: in real implementation, use middleware for authorization*
+/// * Authorization is checked inside each procedure instead of doing it with middleware to reduce code size.
+///   Unfortunately tonic's `interceptor` design only intercepts in-bound requests, but we need to intercept
+///   the responses as well.
 pub struct RemoteJobsService {
     coordinator: JobCoordinator,
     authorizer: Authorizer, // tonic wraps the struct in Arc internally, so we don't need Arc
