@@ -30,17 +30,10 @@ message StatusRequest {
 }
 
 message StatusResponse {
-  message RunningType{}
-  message ExitedType {
-      int32 code = 1;
-  }
-  message KilledType {
-      int32 signal = 1;
-  }
   oneof job_status {
-    RunningType running = 1;
-    ExitedType exited = 2;
-    KilledType killed = 3;
+    bool running = 1;
+    int32 exit_code = 2;
+    int32 kill_signal = 3;
   }
 }
 
