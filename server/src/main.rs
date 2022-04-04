@@ -85,10 +85,11 @@ async fn serve(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
 mod tests {
     use super::*;
     use protobuf::output_request::OutputType;
+    use protobuf::status_response::JobStatus;
     use protobuf::{remote_jobs_client::RemoteJobsClient, StartRequest};
-    use protobuf::{OutputRequest, OutputResponse};
+    use protobuf::{OutputRequest, OutputResponse, StatusRequest};
     use std::collections::HashMap;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 
     // start the server
@@ -102,15 +103,16 @@ mod tests {
     }
 
     async fn build_tls_config(user: &str) -> ClientTlsConfig {
-        let server_root_ca_cert = include_bytes!("../../tls/ca.cert");
+        let server_root_ca_cert = include_bytes!("../../tls/data/server_ca.pem");
         let server_root_ca_cert = Certificate::from_pem(server_root_ca_cert);
 
         let mut pathbuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         pathbuf.push("..");
         pathbuf.push("tls");
+        pathbuf.push("data");
 
         // get user cert path
-        pathbuf.push(format!("{}.cert", user));
+        pathbuf.push(format!("{}.pem", user));
         let client_cert_path = pathbuf
             .canonicalize()
             .expect(&format!("missing client cert: {:?}", pathbuf));
@@ -157,14 +159,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn authenticated_user() {
+    async fn user_authenticates() {
         let addr = "[::1]:50051";
         start_server(addr).await;
-        let client = build_client("alice", addr).await;
+        let _client = build_client("alice", addr).await;
     }
 
     #[tokio::test]
-    async fn unauthenticated_user() {
+    async fn user_cannot_authenticate() {
         let addr = "[::1]:50052";
         start_server(addr).await;
         let mut client = build_client("eve", addr).await;
@@ -175,20 +177,7 @@ mod tests {
             envs: HashMap::new(),
         });
         let response = client.start_job(request).await;
-        match response {
-            Err(status) => match status.code() {
-                tonic::Code::Unauthenticated => {}
-                code => {
-                    panic!(
-                        "unauthenticated user got Err status, but for unexpected reason {}",
-                        code
-                    );
-                }
-            },
-            _ => {
-                panic!("unauthenticated user got Ok response!")
-            }
-        }
+        assert!(response.is_err());
     }
 
     #[tokio::test]
@@ -212,7 +201,7 @@ mod tests {
 
         // get the output
         let stream_request = tonic::Request::new(OutputRequest {
-            job_id,
+            job_id: job_id.clone(),
             output: OutputType::All.into(),
         });
         let mut stream = client
@@ -225,6 +214,21 @@ mod tests {
             received.extend_from_slice(&data);
         }
         assert_eq!("hello alice", String::from_utf8_lossy(&received));
+
+        // check for status
+        let status = client
+            .query_status(tonic::Request::new(StatusRequest { job_id }))
+            .await
+            .expect("no status response")
+            .into_inner()
+            .job_status
+            .expect("got empty job status");
+        match status {
+            JobStatus::ExitCode(code) => {
+                assert_eq!(code, 0)
+            }
+            status => panic!("unexpected job status: {:?}", status),
+        }
     }
 
     #[tokio::test]
