@@ -1,19 +1,19 @@
-#![allow(dead_code, unused_imports, unused_variables)]
-
 mod interceptors;
 mod services;
 
 pub use cert::UserExtension;
 use interceptors::cert;
 use protobuf::remote_jobs_server::RemoteJobsServer;
-use services::jobservice::RemoteJobsService;
-use tonic::{
-    transport::{
-        server::{TcpConnectInfo, TlsConnectInfo},
-        Certificate, Identity, Server, ServerTlsConfig,
-    },
-    Request, Status,
+use tokio_rustls::rustls::{
+    self, ciphersuite::TLS13_AES_256_GCM_SHA384, AllowAnyAuthenticatedClient, RootCertStore,
+    ServerConfig,
 };
+//     cipher_suite::TLS13_AES_256_GCM_SHA384,
+//     server::{AllowAnyAuthenticatedClient, ServerConfig},
+//     RootCertStore,
+// };
+use services::jobservice::RemoteJobsService;
+use tonic::transport::{Server, ServerTlsConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,18 +24,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn serve(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
     let addr = addr.parse().unwrap();
 
-    // load server identity
-    let cert = include_bytes!("../../tls/server.cert");
-    let key = include_bytes!("../../tls/server.key");
-    let server_identity = Identity::from_pem(cert, key);
+    // load server certificate
+    let mut server_pem: &[u8] = include_bytes!("../../tls/data/server.pem");
+    let server_cert_chain = rustls_pemfile::certs(&mut server_pem)
+        .unwrap()
+        .iter()
+        .map(|cert| rustls::Certificate(cert.clone()))
+        .collect();
 
-    // load CA cert
-    let ca_cert = include_bytes!("../../tls/ca.cert");
-    let ca_cert = Certificate::from_pem(ca_cert);
+    // load server key
+    let mut server_key: &[u8] = include_bytes!("../../tls/data/server.key");
+    let server_key = match rustls_pemfile::read_one(&mut server_key)
+        .expect("cannot parse server private key file")
+    {
+        Some(rustls_pemfile::Item::ECKey(key)) => rustls::PrivateKey(key),
+        Some(rustls_pemfile::Item::PKCS8Key(key)) => rustls::PrivateKey(key),
+        thing => panic!("No server key, got thing:\n {:?}", thing),
+    };
 
+    // load client CA cert
+    let mut ca_pem: &[u8] = include_bytes!("../../tls/data/client_ca.pem"); // TODO: read the DER file
+    let client_ca_cert_der = rustls_pemfile::certs(&mut ca_pem)
+        .unwrap()
+        .iter()
+        .map(|der| rustls::Certificate(der.clone()))
+        .take(1)
+        .next()
+        .unwrap();
+
+    let mut client_roots = RootCertStore::empty();
+    client_roots
+        .add(&client_ca_cert_der)
+        .expect("error reading DER encoded ca cert");
+    let client_auth = AllowAnyAuthenticatedClient::new(client_roots);
+    let cipher_suites = &[&TLS13_AES_256_GCM_SHA384];
+    let mut rustls_config = ServerConfig::with_ciphersuites(client_auth, cipher_suites);
+    rustls_config
+        .set_single_cert(server_cert_chain, server_key)
+        .expect("server cert parse err");
+    rustls_config.set_protocols(&[b"h2".to_vec()]);
     let tls_config = ServerTlsConfig::new()
-        .identity(server_identity)
-        .client_ca_root(ca_cert);
+        .rustls_server_config(rustls_config)
+        .to_owned();
 
     let job_service = RemoteJobsService::default();
     let remote_jobs_server =
