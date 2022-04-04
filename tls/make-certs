@@ -36,7 +36,38 @@ openssl req -nodes \
           -sha256 \
           -batch \
           -days 2000 \
-          -subj "/CN=alice+/UID=alice"
+          -subj "/CN=alice/UID=alice"
+
+# client 'bob'
+openssl req -nodes \
+          -newkey ec:nistp384.pem \
+          -keyout bob.key \
+          -out bob.req \
+          -sha256 \
+          -batch \
+          -days 2000 \
+          -subj "/CN=bob/UID=bob"
+
+# client 'charlie'
+openssl req -nodes \
+          -newkey ec:nistp384.pem \
+          -keyout charlie.key \
+          -out charlie.req \
+          -sha256 \
+          -batch \
+          -days 2000 \
+          -subj "/CN=charlie/UID=charlie"
+
+# unauthenticated client 'Eve' - signs her own cert, but could just be any cert not signed by a CA we trust
+openssl req -nodes \
+          -x509 \
+          -newkey ec:nistp384.pem \
+          -keyout eve.key \
+          -out eve.cert \
+          -sha256 \
+          -batch \
+          -days 3650 \
+          -subj "/CN=eve/UID=eve"
 
 # sign server cert
 openssl x509 -req \
@@ -49,6 +80,7 @@ openssl x509 -req \
         -set_serial 456 \
         -extensions v3_end -extfile openssl.cnf
 
+# sign alice's cert
 openssl x509 -req \
         -in alice.req \
         -out alice.cert \
@@ -59,6 +91,29 @@ openssl x509 -req \
         -set_serial 789 \
         -extensions v3_client -extfile openssl.cnf
 
+# sign bob's cert
+openssl x509 -req \
+        -in bob.req \
+        -out bob.cert \
+        -CA ca.cert \
+        -CAkey ca.key \
+        -sha256 \
+        -days 2000 \
+        -set_serial 789 \
+        -extensions v3_client -extfile openssl.cnf
+
+# sign charlie's cert
+openssl x509 -req \
+        -in charlie.req \
+        -out charlie.cert \
+        -CA ca.cert \
+        -CAkey ca.key \
+        -sha256 \
+        -days 2000 \
+        -set_serial 789 \
+        -extensions v3_client -extfile openssl.cnf
+
+# eve's cert is signed by herself, so she shouldn't authenticate to our server
 cat ca.cert > server.chain
 cat server.cert ca.cert > server.fullchain
 
