@@ -1,21 +1,28 @@
 mod authz;
 use self::authz::{AuthzDb, Permission, Scope};
 
+use crate::UserExtension;
+use bytes::Bytes;
+use futures::Stream;
 use joblib::types::JobId;
 use joblib::JobCoordinator;
+use protobuf::output_request::OutputType;
 use protobuf::remote_jobs_server::RemoteJobs;
+use protobuf::status_response::JobStatus::{Exited, Killed, Running};
+use protobuf::status_response::{ExitedType, KilledType, RunningType};
 use protobuf::{
     OutputRequest, OutputResponse, StartRequest, StartResponse, StatusRequest, StatusResponse,
     StopRequest, StopResponse,
 };
 use std::collections::{HashMap, HashSet};
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use tokio;
-use tokio_stream::wrappers::ReceiverStream;
+use tokio_stream::wrappers::{ReceiverStream, UnboundedReceiverStream};
+use tokio_stream::StreamExt;
 use tonic;
 use tonic::{Request, Response, Status};
-
-use crate::UserExtension;
+use uuid::Uuid;
 
 pub type UserId = bytes::Bytes;
 type JobOwnerDb = HashMap<JobId, UserId>;
@@ -52,7 +59,7 @@ impl RemoteJobsService {
         }
     }
 
-    async fn is_authorized(&self, user_id: UserId, action: Action) -> bool {
+    fn is_authorized(&self, user_id: UserId, action: Action) -> bool {
         use Action::*;
         use ExistingJobAction::*;
         match action {
@@ -106,7 +113,7 @@ impl RemoteJobsService {
 
 #[tonic::async_trait]
 impl RemoteJobs for RemoteJobsService {
-    type StreamOutputStream = ReceiverStream<Result<OutputResponse, Status>>;
+    type StreamOutputStream = Pin<Box<dyn Stream<Item = Result<OutputResponse, Status>> + Send>>;
 
     async fn start_job(
         &self,
@@ -118,24 +125,29 @@ impl RemoteJobs for RemoteJobsService {
             .unwrap()
             .user_id
             .clone();
-        println!(
-            "Starting job for user: {}",
-            String::from_utf8_lossy(&user_id)
-        );
+
+        // check authz
+        if !self.is_authorized(user_id.clone(), Action::StartJob) {
+            return Err(Status::permission_denied("Permission denied"));
+        }
+
         let StartRequest {
             cmd,
             args,
             dir,
             envs,
         } = req.into_inner();
-        let envs = vec![]; // TODO: envs is hashmap but coordinator takes vec
+
+        let envs = Vec::from_iter(envs);
         let job_id = self
             .coordinator
             .start_job(cmd, args, dir, envs)
             .await
             .expect("failed to start job");
+
+        self.job_owners.lock().unwrap().insert(job_id, user_id);
         Ok(Response::new(StartResponse {
-            id: job_id.as_bytes().to_vec(),
+            job_id: job_id.as_bytes().to_vec(),
         }))
     }
 
@@ -146,7 +158,30 @@ impl RemoteJobs for RemoteJobsService {
             .unwrap()
             .user_id
             .clone();
-        todo!()
+
+        let job_id = req.into_inner().job_id;
+        let job_id =
+            Uuid::from_slice(&job_id).map_err(|err| Status::invalid_argument(err.to_string()))?;
+
+        // check authz
+        if !self.is_authorized(
+            user_id,
+            Action::ExistingJob {
+                job_id,
+                inner_action: ExistingJobAction::StopJob,
+            },
+        ) {
+            return Err(Status::permission_denied("Permission denied"));
+        }
+
+        self.coordinator
+            .stop_job(job_id)
+            .await
+            .map_err(|err| match err {
+                joblib::error::Error::AlreadyStopped => Status::internal(err.to_string()),
+                joblib::error::Error::DoesNotExist => unreachable!(), // no job, so authz should have failed
+            })?;
+        Ok(Response::new(StopResponse {})) // empty response on success
     }
 
     async fn query_status(
@@ -159,7 +194,36 @@ impl RemoteJobs for RemoteJobsService {
             .unwrap()
             .user_id
             .clone();
-        todo!()
+
+        let job_id = req.into_inner().job_id;
+        let job_id =
+            Uuid::from_slice(&job_id).map_err(|err| Status::invalid_argument(err.to_string()))?;
+
+        // check authz
+        if !self.is_authorized(
+            user_id,
+            Action::ExistingJob {
+                job_id,
+                inner_action: ExistingJobAction::QueryStatus,
+            },
+        ) {
+            return Err(Status::permission_denied("Permission denied"));
+        }
+
+        let job_status = self
+            .coordinator
+            .get_job_status(job_id)
+            .await
+            .map_err(|err| Status::internal(err.to_string()))?;
+        let status = match job_status {
+            joblib::events::JobStatus::Running => Running(RunningType {}),
+            joblib::events::JobStatus::Exited { code } => Exited(ExitedType { code }),
+            joblib::events::JobStatus::Killed { signal } => Killed(KilledType { signal }),
+        };
+        let status_response = StatusResponse {
+            job_status: Some(status),
+        };
+        Ok(Response::new(status_response))
     }
 
     async fn stream_output(
@@ -172,6 +236,37 @@ impl RemoteJobs for RemoteJobsService {
             .unwrap()
             .user_id
             .clone();
-        todo!()
+
+        let job_id = &req.get_ref().job_id;
+        let job_id =
+            Uuid::from_slice(job_id).map_err(|err| Status::invalid_argument(err.to_string()))?;
+
+        // check authz
+        if !self.is_authorized(
+            user_id,
+            Action::ExistingJob {
+                job_id,
+                inner_action: ExistingJobAction::StreamOutput,
+            },
+        ) {
+            return Err(Status::permission_denied("Permission denied"));
+        }
+
+        let receiver_result = match req.into_inner().output() {
+            OutputType::Stdout => self.coordinator.stream_stdout(job_id).await,
+            OutputType::Stderr => self.coordinator.stream_stderr(job_id).await,
+            OutputType::All => self.coordinator.stream_all(job_id).await,
+        };
+        let receiver = receiver_result.map_err(|err| Status::internal(err.to_string()))?;
+
+        let output_stream = UnboundedReceiverStream::from(receiver);
+        let response_stream = output_stream.map(|blob| {
+            Ok(OutputResponse {
+                data: blob.to_vec(),
+            })
+        });
+        Ok(Response::new(
+            Box::pin(response_stream) as Self::StreamOutputStream
+        ))
     }
 }
