@@ -4,6 +4,10 @@
 # * makes keys and CSRs for client/server
 # * uses the CA keys to sign the client/server CSRs
 
+rm -rf ./data
+mkdir data
+cd data
+
 openssl ecparam -name prime256v1 -out nistp256.pem
 openssl ecparam -name secp384r1 -out nistp384.pem
 
@@ -11,12 +15,21 @@ openssl ecparam -name secp384r1 -out nistp384.pem
 openssl req -nodes \
           -x509 \
           -newkey ec:nistp384.pem \
-          -keyout ca.key \
-          -out ca.pem \
+          -keyout server_ca.key \
+          -out server_ca.pem \
           -sha256 \
           -batch \
           -days 3650 \
-          -subj "/CN=somerootca ECDSA CA"
+          -subj "/CN=SomeRootServerCA ECDSA CA"
+# CA
+openssl req -nodes \
+          -x509 \
+          -newkey ec:nistp384.pem \
+          -keyout client_ca.key \
+          -out client_ca.pem \
+          -sha256 \
+          -batch \
+          -subj "/CN=SomeRootClientCA ECDSA CA"
 
 # server
 openssl req -nodes \
@@ -25,7 +38,6 @@ openssl req -nodes \
           -out server.req \
           -sha256 \
           -batch \
-          -days 2000 \
           -subj "/CN=jobserver.com"
 
 # client 'alice'
@@ -35,7 +47,6 @@ openssl req -nodes \
           -out alice.req \
           -sha256 \
           -batch \
-          -days 2000 \
           -subj "/CN=alice/UID=alice"
 
 # client 'bob'
@@ -45,7 +56,6 @@ openssl req -nodes \
           -out bob.req \
           -sha256 \
           -batch \
-          -days 2000 \
           -subj "/CN=bob/UID=bob"
 
 # client 'charlie'
@@ -55,7 +65,6 @@ openssl req -nodes \
           -out charlie.req \
           -sha256 \
           -batch \
-          -days 2000 \
           -subj "/CN=charlie/UID=charlie"
 
 # unauthenticated client 'Eve' - signs her own cert, but could just be any cert not signed by a CA we trust
@@ -66,59 +75,67 @@ openssl req -nodes \
           -out eve.pem \
           -sha256 \
           -batch \
-          -days 3650 \
           -subj "/CN=eve/UID=eve"
 
 # sign server cert
 openssl x509 -req \
         -in server.req \
         -out server.pem \
-        -CA ca.pem \
-        -CAkey ca.key \
+        -CA server_ca.pem \
+        -CAkey server_ca.key \
         -sha256 \
         -days 2000 \
         -set_serial 456 \
-        -extensions v3_end -extfile openssl.cnf
+        -extensions v3_end -extfile ../openssl.cnf
 
 # sign alice's cert
 openssl x509 -req \
         -in alice.req \
         -out alice.pem \
-        -CA ca.pem \
-        -CAkey ca.key \
+        -CA client_ca.pem \
+        -CAkey client_ca.key \
         -sha256 \
         -days 2000 \
         -set_serial 789 \
-        -extensions v3_client -extfile openssl.cnf
+        -extensions v3_client -extfile ../openssl.cnf
 
 # sign bob's cert
 openssl x509 -req \
         -in bob.req \
         -out bob.pem \
-        -CA ca.pem \
-        -CAkey ca.key \
+        -CA client_ca.pem \
+        -CAkey client_ca.key \
         -sha256 \
         -days 2000 \
         -set_serial 789 \
-        -extensions v3_client -extfile openssl.cnf
+        -extensions v3_client -extfile ../openssl.cnf
 
 # sign charlie's cert
 openssl x509 -req \
         -in charlie.req \
         -out charlie.pem \
-        -CA ca.pem \
-        -CAkey ca.key \
+        -CA client_ca.pem \
+        -CAkey client_ca.key \
         -sha256 \
         -days 2000 \
         -set_serial 789 \
-        -extensions v3_client -extfile openssl.cnf
+        -extensions v3_client -extfile ../openssl.cnf
 
-# eve's cert is signed by herself, so she shouldn't authenticate to our server
-cat ca.pem > server.chain
-cat server.pem ca.pem > server.fullchain
+cat server_ca.pem > server.chain
+cat server.pem server_ca.pem > server.fullchain
 
-cat ca.pem > alice.chain
-cat alice.pem ca.pem > alice.fullchain
+cat client_ca.pem > alice.chain
+cat alice.pem client_ca.pem > alice.fullchain
 
-openssl asn1parse -in ca.pem -out ca.der > /dev/null
+cat client_ca.pem > bob.chain
+cat bob.pem client_ca.pem > bob.fullchain
+
+cat client_ca.pem > charlie.chain
+cat charlie.pem client_ca.pem > charlie.fullchain
+
+cat eve.pem > eve.chain
+cat eve.pem client_ca.pem > eve.fullchain
+
+openssl asn1parse -in server_ca.pem -out server_ca.der > /dev/null
+openssl asn1parse -in client_ca.pem -out client_ca.der > /dev/null
 
