@@ -1,17 +1,6 @@
-use protobuf::remote_jobs_server::RemoteJobsServer;
-use tonic::{
-    transport::{
-        server::{TcpConnectInfo, TlsConnectInfo},
-        Certificate, Identity, Server, ServerTlsConfig,
-    },
-    Request, Status,
-};
-use x509_parser::{
-    certificate::X509Certificate,
-    oid_registry::Oid,
-    prelude::{oid2abbrev, oid2description, oid2sn, oid_registry},
-    traits::FromDer,
-};
+use crate::services::jobservice::UserId;
+use tonic::{Request, Status};
+use x509_parser::{certificate::X509Certificate, oid_registry::Oid, traits::FromDer};
 
 /// A tonic interceptor service function.
 ///
@@ -20,7 +9,7 @@ pub fn extract_subj_uid(mut req: Request<()>) -> Result<Request<()>, Status> {
     // extract the client certs
     let client_certs = req
         .peer_certs()
-        .ok_or(Status::unauthenticated("Request missing client cert"))?;
+        .ok_or_else(|| Status::unauthenticated("Request missing client cert"))?;
     if client_certs.len() == 0 {
         return Err(Status::unauthenticated("Request missing client cert"));
     }
@@ -40,12 +29,12 @@ pub fn extract_subj_uid(mut req: Request<()>) -> Result<Request<()>, Status> {
             .iter_by_oid(&oid)
             .take(1)
             .next()
-            .ok_or(Status::unauthenticated("Client cert missing subject uid"))?;
+            .ok_or_else(|| Status::unauthenticated("Client cert missing subject uid"))?;
         if let x509_parser::der_parser::ber::BerObjectContent::UTF8String(user) =
             uid.attr_value().content
         {
             req.extensions_mut().insert(UserExtension {
-                user_id: bytes::Bytes::copy_from_slice(user.as_bytes()),
+                user_id: String::from(user),
             });
         } else {
             return Err(Status::unauthenticated("Client cert uid must be UTF8"));
@@ -55,5 +44,5 @@ pub fn extract_subj_uid(mut req: Request<()>) -> Result<Request<()>, Status> {
 }
 
 pub struct UserExtension {
-    pub user_id: bytes::Bytes,
+    pub user_id: UserId,
 }
