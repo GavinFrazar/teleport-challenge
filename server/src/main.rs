@@ -4,15 +4,11 @@ mod services;
 pub use cert::UserExtension;
 use interceptors::cert;
 use protobuf::remote_jobs_server::RemoteJobsServer;
+use services::jobservice::RemoteJobsService;
 use tokio_rustls::rustls::{
     self, ciphersuite::TLS13_AES_256_GCM_SHA384, AllowAnyAuthenticatedClient, RootCertStore,
     ServerConfig,
 };
-//     cipher_suite::TLS13_AES_256_GCM_SHA384,
-//     server::{AllowAnyAuthenticatedClient, ServerConfig},
-//     RootCertStore,
-// };
-use services::jobservice::RemoteJobsService;
 use tonic::transport::{Server, ServerTlsConfig};
 
 #[tokio::main]
@@ -24,13 +20,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn serve(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
     let addr = addr.parse().unwrap();
 
+    // load client CA cert
+    let client_ca_der: &[u8] = include_bytes!("../../tls/data/client_ca.der");
+    let client_ca_cert_der = rustls::Certificate(client_ca_der.into());
+    let mut client_roots = RootCertStore::empty();
+    client_roots
+        .add(&client_ca_cert_der)
+        .expect("error reading DER encoded ca cert");
+    let client_auth = AllowAnyAuthenticatedClient::new(client_roots);
+    let cipher_suites = &[&TLS13_AES_256_GCM_SHA384];
+    let mut rustls_config = ServerConfig::with_ciphersuites(client_auth, cipher_suites);
+
     // load server certificate
-    let mut server_pem: &[u8] = include_bytes!("../../tls/data/server.pem");
-    let server_cert_chain = rustls_pemfile::certs(&mut server_pem)
-        .unwrap()
-        .iter()
-        .map(|cert| rustls::Certificate(cert.clone()))
-        .collect();
+    let server_der: &[u8] = include_bytes!("../../tls/data/server.der");
+    let server_cert_chain = vec![rustls::Certificate(server_der.into())];
 
     // load server key
     let mut server_key: &[u8] = include_bytes!("../../tls/data/server.key");
@@ -42,31 +45,18 @@ async fn serve(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
         thing => panic!("No server key, got thing:\n {:?}", thing),
     };
 
-    // load client CA cert
-    let mut ca_pem: &[u8] = include_bytes!("../../tls/data/client_ca.pem"); // TODO: read the DER file
-    let client_ca_cert_der = rustls_pemfile::certs(&mut ca_pem)
-        .unwrap()
-        .iter()
-        .map(|der| rustls::Certificate(der.clone()))
-        .take(1)
-        .next()
-        .unwrap();
-
-    let mut client_roots = RootCertStore::empty();
-    client_roots
-        .add(&client_ca_cert_der)
-        .expect("error reading DER encoded ca cert");
-    let client_auth = AllowAnyAuthenticatedClient::new(client_roots);
-    let cipher_suites = &[&TLS13_AES_256_GCM_SHA384];
-    let mut rustls_config = ServerConfig::with_ciphersuites(client_auth, cipher_suites);
+    // use server cert/key
     rustls_config
         .set_single_cert(server_cert_chain, server_key)
         .expect("server cert parse err");
+
+    // use HTTP/2 over tls
     rustls_config.set_protocols(&[b"h2".to_vec()]);
+
+    // Create the tonic server config
     let tls_config = ServerTlsConfig::new()
         .rustls_server_config(rustls_config)
         .to_owned();
-
     let job_service = RemoteJobsService::default();
     let remote_jobs_server =
         RemoteJobsServer::with_interceptor(job_service, cert::extract_subj_uid);
