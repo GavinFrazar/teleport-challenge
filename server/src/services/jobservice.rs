@@ -1,38 +1,40 @@
 mod authz;
 use self::authz::{AuthzDb, Permission, Scope};
-
 use crate::UserExtension;
-use bytes::Bytes;
+
 use futures::Stream;
-use joblib::types::JobId;
-use joblib::JobCoordinator;
-use protobuf::output_request::OutputType;
-use protobuf::remote_jobs_server::RemoteJobs;
-use protobuf::status_response::JobStatus::{Exited, Killed, Running};
-use protobuf::status_response::{ExitedType, KilledType, RunningType};
+use joblib::{types::JobId, JobCoordinator};
 use protobuf::{
+    output_request::OutputType,
+    remote_jobs_server::RemoteJobs,
+    status_response::JobStatus::{ExitCode, KillSignal, Running},
     OutputRequest, OutputResponse, StartRequest, StartResponse, StatusRequest, StatusResponse,
     StopRequest, StopResponse,
 };
-use std::collections::{HashMap, HashSet};
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use tokio;
-use tokio_stream::wrappers::{ReceiverStream, UnboundedReceiverStream};
-use tokio_stream::StreamExt;
-use tonic;
-use tonic::{Request, Response, Status};
+
+use std::{collections::HashMap, pin::Pin, sync::Mutex};
+use tokio_stream::{wrappers::UnboundedReceiverStream, StreamExt};
+use tonic::{self, Request, Response, Status};
 use uuid::Uuid;
 
-pub type UserId = bytes::Bytes;
+pub type UserId = String;
 type JobOwnerDb = HashMap<JobId, UserId>;
 
-// tonic wraps this in Arc anyway internally, so we don't need Arc
-#[derive(Default)]
+/// A job service for remote job start/stop/status/output api.
+///
+/// Jobs are assigned an owner when they start - the `user id` of the user who started the job.
+///
+/// Authorization is provided by a mock authz database interface
 pub struct RemoteJobsService {
     coordinator: JobCoordinator,
-    job_owners: Mutex<JobOwnerDb>,
-    authz_db: AuthzDb, // immutable pre-populated mock db
+    job_owners: Mutex<JobOwnerDb>, // tonic wraps the struct in Arc internally, so we don't need Arc
+    authz_db: AuthzDb,             // immutable pre-populated mock db
+}
+
+impl Default for RemoteJobsService {
+    fn default() -> Self {
+        Self::new(1024)
+    }
 }
 
 enum ExistingJobAction {
@@ -59,7 +61,7 @@ impl RemoteJobsService {
         }
     }
 
-    fn is_authorized(&self, user_id: UserId, action: Action) -> bool {
+    fn is_authorized(&self, user_id: &UserId, action: Action) -> bool {
         use Action::*;
         use ExistingJobAction::*;
         match action {
@@ -71,7 +73,7 @@ impl RemoteJobsService {
                 if let Some(job_owner) = maybe_owner {
                     match inner_action {
                         StopJob => {
-                            if job_owner == user_id {
+                            if job_owner == *user_id {
                                 return self
                                     .authz_db
                                     .has_permission(user_id, Permission::StartOrStop);
@@ -84,7 +86,7 @@ impl RemoteJobsService {
                             }
                         }
                         QueryStatus | StreamOutput => {
-                            if job_owner == user_id {
+                            if job_owner == *user_id {
                                 return self.authz_db.has_permission(user_id, Permission::Query);
                             } else {
                                 return self.authz_db.has_scoped_permission(
@@ -127,7 +129,7 @@ impl RemoteJobs for RemoteJobsService {
             .clone();
 
         // check authz
-        if !self.is_authorized(user_id.clone(), Action::StartJob) {
+        if !self.is_authorized(&user_id, Action::StartJob) {
             return Err(Status::permission_denied("Permission denied"));
         }
 
@@ -145,7 +147,10 @@ impl RemoteJobs for RemoteJobsService {
             .await
             .expect("failed to start job");
 
-        self.job_owners.lock().unwrap().insert(job_id, user_id);
+        self.job_owners
+            .lock()
+            .unwrap()
+            .insert(job_id, user_id.to_string());
         Ok(Response::new(StartResponse {
             job_id: job_id.as_bytes().to_vec(),
         }))
@@ -165,7 +170,7 @@ impl RemoteJobs for RemoteJobsService {
 
         // check authz
         if !self.is_authorized(
-            user_id,
+            &user_id,
             Action::ExistingJob {
                 job_id,
                 inner_action: ExistingJobAction::StopJob,
@@ -201,7 +206,7 @@ impl RemoteJobs for RemoteJobsService {
 
         // check authz
         if !self.is_authorized(
-            user_id,
+            &user_id,
             Action::ExistingJob {
                 job_id,
                 inner_action: ExistingJobAction::QueryStatus,
@@ -216,9 +221,9 @@ impl RemoteJobs for RemoteJobsService {
             .await
             .map_err(|err| Status::internal(err.to_string()))?;
         let status = match job_status {
-            joblib::events::JobStatus::Running => Running(RunningType {}),
-            joblib::events::JobStatus::Exited { code } => Exited(ExitedType { code }),
-            joblib::events::JobStatus::Killed { signal } => Killed(KilledType { signal }),
+            joblib::events::JobStatus::Running => Running(true),
+            joblib::events::JobStatus::Exited { code } => ExitCode(code),
+            joblib::events::JobStatus::Killed { signal } => KillSignal(signal),
         };
         let status_response = StatusResponse {
             job_status: Some(status),
@@ -243,7 +248,7 @@ impl RemoteJobs for RemoteJobsService {
 
         // check authz
         if !self.is_authorized(
-            user_id,
+            &user_id,
             Action::ExistingJob {
                 job_id,
                 inner_action: ExistingJobAction::StreamOutput,

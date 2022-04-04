@@ -80,23 +80,23 @@ impl Default for AuthzDb {
 
 /// Loads the RBAC database in memory.
 impl AuthzDb {
-    pub fn has_permission(&self, user_id: UserId, permission: Permission) -> bool {
-        self.has_scoped_permission(user_id.clone(), Scope::Owner, permission)
+    pub fn has_permission(&self, user_id: &UserId, permission: Permission) -> bool {
+        self.has_scoped_permission(user_id, Scope::Owner, permission)
             || self.has_scoped_permission(user_id, Scope::All, permission)
     }
 
     pub fn has_scoped_permission(
         &self,
-        user_id: UserId,
+        user_id: &UserId,
         scope: Scope,
         permission: Permission,
     ) -> bool {
-        if let Some(scoped_roles) = self.user_database.get(&user_id) {
+        if let Some(scoped_roles) = self.user_database.get(user_id) {
             if let Some(roles) = scoped_roles.get(&scope) {
                 for role in roles {
                     if self
                         .role_permissions
-                        .get(&role)
+                        .get(role)
                         .expect("invalid authz db")
                         .contains(&permission)
                     {
