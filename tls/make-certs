@@ -136,6 +136,12 @@ cat charlie.pem client_ca.pem > charlie.fullchain
 cat eve.pem > eve.chain
 cat eve.pem client_ca.pem > eve.fullchain
 
+# parse pem to der
 openssl asn1parse -in server_ca.pem -out server_ca.der > /dev/null
 openssl asn1parse -in client_ca.pem -out client_ca.der > /dev/null
+openssl asn1parse -in server.pem -out server.der > /dev/null
+openssl asn1parse -in alice.pem -out alice.der > /dev/null
+openssl asn1parse -in bob.pem -out bob.der > /dev/null
+openssl asn1parse -in charlie.pem -out charlie.der > /dev/null
+openssl asn1parse -in eve.pem -out eve.der > /dev/null
 
