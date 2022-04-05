@@ -21,8 +21,8 @@ pub enum SubCommand {
         #[clap(long, multiple_values = true)]
         args: Vec<String>,
 
-        #[clap(long, multiple_values = true)]
-        dir: Option<String>,
+        #[clap(long)]
+        dir: String,
 
         #[clap(long, multiple_values = true, parse(try_from_str = var_eq_val))]
         envs: Vec<(String, String)>,
