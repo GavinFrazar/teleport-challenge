@@ -27,7 +27,7 @@ The tests are not comprehensive - only basic functionality tests for joblib and 
 
 ## Code Style
 
-This project uses rustfmt to enforce style.
+This project uses rustfmt with default configuration to enforce style.
 
 ## Docs
 
