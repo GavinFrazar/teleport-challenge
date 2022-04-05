@@ -13,7 +13,6 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
     let args = ArgParser::parse();
     let mut client = ClientCli::connect(&args.user, &args.server).await;
 
-    // if args.start/stop/status/stream -> do thing
     match args.sub_command {
         SubCommand::Start {
             command,
