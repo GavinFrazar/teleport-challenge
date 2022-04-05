@@ -4,9 +4,14 @@ use uuid::Uuid;
 /// Connect to a gRPC job server
 #[derive(Debug, Parser)]
 pub struct ArgParser {
+    /// user name (selects user cert/key from a hard-coded path TODO: real implementation use real config file)
+    #[clap(short = 'u', long = "user")]
+    pub user: String,
+
     /// The address of the server
     #[clap(short = 's', long = "server")]
     pub server: String,
+
     /// The sub-command to use
     #[clap(subcommand)]
     pub sub_command: SubCommand,

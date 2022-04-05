@@ -10,10 +10,8 @@ use std::error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn error::Error>> {
-    let user = "charlie"; // TODO: add config in a real implementation
-
     let args = ArgParser::parse();
-    let mut client = ClientCli::connect(user, &args.server).await;
+    let mut client = ClientCli::connect(&args.user, &args.server).await;
 
     // if args.start/stop/status/stream -> do thing
     match args.sub_command {
