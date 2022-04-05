@@ -50,27 +50,25 @@ impl ClientCli {
         });
         let response = self.inner.start_job(request).await?;
         let job_id = response.into_inner().job_id;
-        let uuid = Uuid::from_slice(&job_id).expect("server responded with invalid uuid");
+        let uuid = JobId::from_slice(&job_id).expect("server responded with invalid uuid");
         println!("Started job id: {}", uuid);
         Ok(())
     }
 
     pub async fn stop_job(&mut self, job_id: JobId) -> Result<(), Status> {
-        let uuid =
-            Uuid::from_slice(&job_id).expect("client cli: stop job called with invalid job uuid");
         let request = Request::new(protobuf::StopRequest {
-            job_id: job_id.into(),
+            job_id: job_id.as_bytes().to_vec(),
         });
         let _ = self.inner.stop_job(request).await?;
-        println!("Stopped job id: {}", uuid);
+        println!("Stopped job id: {}", job_id);
         Ok(())
     }
 
     pub async fn query_status(&mut self, job_id: JobId) -> Result<(), Status> {
-        let response = self
-            .inner
-            .query_status(tonic::Request::new(StatusRequest { job_id }))
-            .await?;
+        let request = tonic::Request::new(StatusRequest {
+            job_id: job_id.as_bytes().to_vec(),
+        });
+        let response = self.inner.query_status(request).await?;
         let status = response
             .into_inner()
             .job_status
@@ -83,35 +81,16 @@ impl ClientCli {
         Ok(())
     }
 
-    /// convenience function
-    pub async fn stream_stdout(&mut self, job_id: JobId) -> Result<(), Status> {
-        let output_request = OutputRequest {
-            job_id: job_id.into(),
-            output: OutputType::Stdout.into(),
-        };
-        self.stream_output(output_request).await
-    }
-
-    /// convenience function
-    pub async fn stream_stderr(&mut self, job_id: JobId) -> Result<(), Status> {
-        let output_request = OutputRequest {
-            job_id: job_id.into(),
-            output: OutputType::Stderr.into(),
-        };
-        self.stream_output(output_request).await
-    }
-
-    /// convenience function
-    pub async fn stream_all(&mut self, job_id: JobId) -> Result<(), Status> {
-        let output_request = OutputRequest {
-            job_id: job_id.into(),
-            output: OutputType::All.into(),
-        };
-        self.stream_output(output_request).await
-    }
-
     /// Stream the requested output
-    async fn stream_output(&mut self, output_request: OutputRequest) -> Result<(), Status> {
+    pub async fn stream_output(
+        &mut self,
+        job_id: JobId,
+        output_type: OutputType,
+    ) -> Result<(), Status> {
+        let output_request = OutputRequest {
+            job_id: job_id.as_bytes().to_vec(),
+            output: output_type.into(),
+        };
         let request = Request::new(output_request);
         let response = self.inner.stream_output(request).await?;
         let mut stream = response.into_inner();
