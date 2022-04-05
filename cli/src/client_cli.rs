@@ -19,7 +19,19 @@ pub struct ClientCli {
 
 impl ClientCli {
     pub async fn connect(user: &str, server_addr: &str) -> Self {
-        todo!()
+        let tls = build_tls_config(user).await;
+
+        let channel = Channel::from_shared(format!("https://{}", server_addr))
+            .expect("channel parse error")
+            .tls_config(tls)
+            .expect("tls config")
+            .connect()
+            .await
+            .expect("channel connect");
+
+        Self {
+            inner: RemoteJobsClient::new(channel),
+        }
     }
 
     pub async fn start_job(
@@ -108,4 +120,43 @@ impl ClientCli {
         }
         Ok(())
     }
+}
+
+async fn build_tls_config(user: &str) -> ClientTlsConfig {
+    let server_root_ca_cert = include_bytes!("../../tls/data/server_ca.pem");
+    let server_root_ca_cert = Certificate::from_pem(server_root_ca_cert);
+
+    let mut pathbuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    pathbuf.push("..");
+    pathbuf.push("tls");
+    pathbuf.push("data");
+
+    // get user cert path
+    pathbuf.push(format!("{}.pem", user));
+    let client_cert_path = pathbuf
+        .canonicalize()
+        .unwrap_or_else(|_| panic!("missing client cert: {:?}", pathbuf));
+    pathbuf.pop();
+
+    // get user key path
+    pathbuf.push(format!("{}.key", user));
+    let client_key_path = pathbuf
+        .canonicalize()
+        .unwrap_or_else(|_| panic!("missing client key: {:?}", pathbuf));
+
+    // read client cert
+    let client_cert = tokio::fs::read(client_cert_path.clone())
+        .await
+        .unwrap_or_else(|_| panic!("failed to read {:?}", client_cert_path));
+
+    // read client key
+    let client_key = tokio::fs::read(client_key_path.clone())
+        .await
+        .unwrap_or_else(|_| panic!("failed to read {:?}", client_key_path));
+    let client_identity = Identity::from_pem(client_cert, client_key);
+
+    ClientTlsConfig::new()
+        .domain_name("localhost")
+        .ca_certificate(server_root_ca_cert)
+        .identity(client_identity)
 }
