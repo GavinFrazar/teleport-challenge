@@ -17,9 +17,9 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
     match args.sub_command {
         SubCommand::Start {
             command,
-            args,
             dir,
             envs,
+            args,
         } => {
             client.start_job(&command, &args, &dir, &envs).await?;
         }
