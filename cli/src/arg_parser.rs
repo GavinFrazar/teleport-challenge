@@ -21,19 +21,19 @@ pub struct ArgParser {
 pub enum SubCommand {
     /// start a new job
     Start {
-        #[clap(long)]
+        #[clap(short = 'c', long = "command")]
         /// name of the command to run
         command: String,
 
-        #[clap(long, multiple_values = true)]
+        #[clap(short = 'a', long = "args", multiple_values = true)]
         /// a list of args to the command
         args: Vec<String>,
 
-        #[clap(long)]
+        #[clap(short = 'd', long = "dir")]
         /// working directory for the command
         dir: String,
 
-        #[clap(long, multiple_values = true, parse(try_from_str = var_eq_val))]
+        #[clap(short = 'e', long = "envs", multiple_values = true, parse(try_from_str = var_eq_val))]
         /// list of environment variables
         envs: Vec<(String, String)>,
     },
