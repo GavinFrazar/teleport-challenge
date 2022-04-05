@@ -1,7 +1,7 @@
 # Remote Job Service CLI
 
 ## Usage
-```sh
+```
 cli 
 Connect to a gRPC job server
 
@@ -22,7 +22,7 @@ SUBCOMMANDS:
     stop      stop a job
 ```
 
-```sh
+```
 cli-start 
 start a new job
 
@@ -39,7 +39,7 @@ OPTIONS:
     -h, --help                 Print help information
 ```
 
-```sh
+```
 cli-stop 
 stop a job
 
@@ -53,7 +53,7 @@ OPTIONS:
     -h, --help    Print help information
 ```
 
-```sh
+```
 cli-status 
 get a job's status
 
@@ -67,7 +67,7 @@ OPTIONS:
     -h, --help    Print help information
 ```
 
-```sh
+```
 cli-output 
 stream a job's output
 
@@ -87,7 +87,7 @@ OPTIONS:
 * NOTE: the cli didnt exactly match the design. I realized I needed a way to handle job option args,
         so to make parsing easier we have args as positionally at the end of the start subcommand.
         If flags are needed, you must pass "-- -arg1" for example.
-```sh
+```
 # Assume there is a server listening on [::1]:50051
 
 ## start a job to execute "echo -n hello world -- hi", which prints "hello world -- hi" with no trailing newline.
