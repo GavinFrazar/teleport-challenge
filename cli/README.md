@@ -110,7 +110,7 @@ OPTIONS:
 
 ## start a job to execute "echo -n hello world -- hi", which prints "hello world -- hi" with no trailing newline.
 
-$ uuid=$(./cli -u alice -s "[::1]:50051" start --command echo --dir "/tmp" -- -n hello world -- hi
+$ uuid=$(./cli -u alice -s "[::1]:50051" start --command echo --dir "/tmp" -- -n hello world -- hi)
 $ ./cli -u alice -s [::1]:50051 stop $uuid
 Error: Status { code: Internal, message: "Job already stopped", metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Tue, 05 Apr 2022 08:43:05 GMT"} }, source: None }
 $ ./cli -u alice -s [::1]:50051 status $uuid
