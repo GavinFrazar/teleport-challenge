@@ -9,7 +9,7 @@ use clap::Parser;
 use std::error;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn error::Error>> {
     let user = "charlie"; // TODO: add config in a real implementation
 
     let args = ArgParser::parse();
@@ -23,12 +23,27 @@ async fn main() {
             args,
             dir,
             envs,
-        } => {}
-        SubCommand::Stop { job_id } => {}
-        SubCommand::Status { job_id } => {}
+        } => {
+            client.start_job(&command, &args, &dir, &envs).await?;
+        }
+        SubCommand::Stop { job_id } => {
+            client.stop_job(job_id).await?;
+        }
+        SubCommand::Status { job_id } => {
+            client.query_status(job_id).await?;
+        }
         SubCommand::Output {
             job_id,
             output_type,
-        } => {}
+        } => {
+            let output_type = match output_type {
+                arg_parser::OutputType::Stdout => output_request::OutputType::Stdout,
+                arg_parser::OutputType::Stderr => output_request::OutputType::Stderr,
+                arg_parser::OutputType::All => output_request::OutputType::All,
+            };
+            client.stream_output(job_id, output_type).await?
+        }
     }
+
+    Ok(())
 }
