@@ -52,7 +52,7 @@ impl ClientCli {
         let response = self.inner.start_job(request).await?;
         let job_id = response.into_inner().job_id;
         let uuid = JobId::from_slice(&job_id).expect("server responded with invalid uuid");
-        println!("Started job id: {}", uuid);
+        println!("{}", uuid);
         Ok(())
     }
 
