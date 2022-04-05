@@ -25,10 +25,6 @@ pub enum SubCommand {
         /// name of the command to run
         command: String,
 
-        #[clap(short = 'a', long = "args", multiple_values = true)]
-        /// a list of args to the command
-        args: Vec<String>,
-
         #[clap(short = 'd', long = "dir")]
         /// working directory for the command
         dir: String,
@@ -36,6 +32,8 @@ pub enum SubCommand {
         #[clap(short = 'e', long = "envs", multiple_values = true, parse(try_from_str = var_eq_val))]
         /// list of environment variables
         envs: Vec<(String, String)>,
+
+        args: Vec<String>
     },
     /// stop a job
     Stop {
