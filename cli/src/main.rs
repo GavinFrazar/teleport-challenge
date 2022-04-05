@@ -13,7 +13,6 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
     let user = "charlie"; // TODO: add config in a real implementation
 
     let args = ArgParser::parse();
-    println!("{:?}", args);
     let mut client = ClientCli::connect(user, &args.server).await;
 
     // if args.start/stop/status/stream -> do thing
