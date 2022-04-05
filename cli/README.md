@@ -1,5 +1,21 @@
 # Remote Job Service CLI
 
+
+## Configuration
+
+For this prototype implementation, user configuration is hard coded.
+There are 4 predefined users:
+
+Eve - user with an untrusted cert who shouldn't authenticate with the server.
+
+Authenticated Users:
+
+| User | Scope | Role |
+| :---: | :---: | :---:|
+| Alice | Self | Task Manager |
+| Bob | All | Analyst |
+| Charlie | All | Task Manager |
+
 ## Usage
 ```
 cli 
