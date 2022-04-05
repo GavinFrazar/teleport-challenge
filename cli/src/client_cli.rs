@@ -1,15 +1,17 @@
 use std::collections::HashMap;
 
 use protobuf::{
-    output_request::{self, OutputType},
-    remote_jobs_client::RemoteJobsClient,
-    status_response::JobStatus,
+    output_request::OutputType, remote_jobs_client::RemoteJobsClient, status_response::JobStatus,
     OutputRequest, OutputResponse, StartRequest, StatusRequest,
 };
-use tonic::{transport::Channel, Request, Status};
-use uuid::Uuid;
 
-type JobId = Vec<u8>;
+use std::path::PathBuf;
+use tonic::{
+    transport::{Certificate, Channel, ClientTlsConfig, Identity},
+    Request, Status,
+};
+
+type JobId = uuid::Uuid;
 
 pub struct ClientCli {
     inner: RemoteJobsClient<Channel>,
