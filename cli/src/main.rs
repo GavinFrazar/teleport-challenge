@@ -2,11 +2,11 @@ mod arg_parser;
 mod client_cli;
 
 use arg_parser::{ArgParser, SubCommand};
-use clap::Parser;
 use client_cli::ClientCli;
+use protobuf::output_request;
 
-use tokio;
-use uuid::Uuid;
+use clap::Parser;
+use std::error;
 
 #[tokio::main]
 async fn main() {
