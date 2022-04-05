@@ -6,15 +6,17 @@
 For this prototype implementation, user configuration is hard coded.
 There are 4 predefined users:
 
-Eve - user with an untrusted cert who shouldn't authenticate with the server.
+`eve` - user with an untrusted cert who shouldn't authenticate with the server.
 
 Authenticated Users:
 
 | User | Scope | Role |
 | :---: | :---: | :---:|
-| Alice | Self | Task Manager |
-| Bob | All | Analyst |
-| Charlie | All | Task Manager |
+| alice | Self | Task Manager |
+| bob | All | Analyst |
+| charlie | All | Task Manager |
+
+Any of these usernames (lowercase) can be used with the cli.
 
 ## Usage
 ```
@@ -108,7 +110,7 @@ OPTIONS:
 
 ## start a job to execute "echo -n hello world -- hi", which prints "hello world -- hi" with no trailing newline.
 
-$ uuid=$(./cli -u alice -s "[::1]:50051" start --command echo --dir "/tmp" -- -n hello world -- hi)
+$ uuid=$(./cli -u alice -s "[::1]:50051" start --command echo --dir "/tmp" -- -n hello world -- hi
 $ ./cli -u alice -s [::1]:50051 stop $uuid
 Error: Status { code: Internal, message: "Job already stopped", metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Tue, 05 Apr 2022 08:43:05 GMT"} }, source: None }
 $ ./cli -u alice -s [::1]:50051 status $uuid
