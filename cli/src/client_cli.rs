@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Write;
 
 use protobuf::{
     output_request::OutputType, remote_jobs_client::RemoteJobsClient, status_response::JobStatus,
@@ -94,8 +95,14 @@ impl ClientCli {
         let request = Request::new(output_request);
         let response = self.inner.stream_output(request).await?;
         let mut stream = response.into_inner();
+        let mut stdout = std::io::stdout();
         while let Some(OutputResponse { data }) = stream.message().await? {
-            print!("{}", String::from_utf8_lossy(&data));
+            if let Err(err) = write!(stdout, "{}", String::from_utf8_lossy(&data)) {
+                if err.kind() == std::io::ErrorKind::BrokenPipe {
+                    break;
+                }
+                let _ = writeln!(std::io::stderr(), "{}", err);
+            }
         }
         Ok(())
     }
