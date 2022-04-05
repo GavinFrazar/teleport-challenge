@@ -49,9 +49,9 @@ pub enum OutputType {
 }
 
 fn var_eq_val(s: &str) -> Result<(String, String), String> {
-    let mut v: Vec<String> = s.split("=").map(str::to_string).collect();
+    let mut v: Vec<String> = s.split('=').map(str::to_string).collect();
     if v.len() != 2 {
-        Err(format!("Required format is VAR=VAL"))
+        Err("Required format is VAR=VAL".to_string())
     } else {
         let val = v.pop().unwrap();
         let var = v.pop().unwrap();
