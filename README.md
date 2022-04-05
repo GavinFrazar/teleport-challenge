@@ -1,6 +1,6 @@
 # teleport-challenge
 
-## Desgn 
+## Design 
 
 See the [design document](design.md)
 
@@ -27,7 +27,7 @@ The tests are not comprehensive - only basic functionality tests for joblib and 
 
 ## Code Style
 
-This project uses rustfmt with default configuration to enforce style.
+This project uses rustfmt with default configuration, which conforms to the [Rust Style Guide](https://github.com/rust-dev-tools/fmt-rfcs/blob/master/guide/guide.md)
 
 ## Docs
 
