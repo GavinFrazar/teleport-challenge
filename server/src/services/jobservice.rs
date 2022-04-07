@@ -80,8 +80,7 @@ impl RemoteJobs for RemoteJobsService {
         let job_id = self
             .coordinator
             .start_job(cmd, args, dir, envs)
-            .await
-            .expect("failed to start job");
+            .await?;
 
         self.authorizer.add_job(job_id, &user_id);
         Ok(Response::new(StartResponse {
