@@ -77,10 +77,7 @@ impl RemoteJobs for RemoteJobsService {
         } = req.into_inner();
 
         let envs = Vec::from_iter(envs);
-        let job_id = self
-            .coordinator
-            .start_job(cmd, args, dir, envs)
-            .await?;
+        let job_id = self.coordinator.start_job(cmd, args, dir, envs).await?;
 
         self.authorizer.add_job(job_id, &user_id);
         Ok(Response::new(StartResponse {

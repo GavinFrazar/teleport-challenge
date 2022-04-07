@@ -33,7 +33,7 @@ pub enum SubCommand {
         /// list of environment variables
         envs: Vec<(String, String)>,
 
-        args: Vec<String>
+        args: Vec<String>,
     },
     /// stop a job
     Stop {
