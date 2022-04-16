@@ -22,7 +22,7 @@ To run tests: `$ cargo test`
 
 There are tests for joblib and the server api.
 
-The tests are not comprehensive - only basic functionality tests for joblib and authz/authd happy/unhappy path.
+The tests are not comprehensive - only basic functionality tests for joblib and authz/authn happy/unhappy path.
 
 
 ## Code Style
