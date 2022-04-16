@@ -25,4 +25,4 @@ I made some name changes to the protobuf file/package when, after codegen, it be
 
 I included tests in [main.rs](src/main.rs)
 
-Tests cover basic functionality and authd/authz happy/unhappy paths. 
+Tests cover basic functionality and authn/authz happy/unhappy paths. 
