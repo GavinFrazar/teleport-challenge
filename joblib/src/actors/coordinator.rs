@@ -24,6 +24,12 @@ pub struct JobCoordinatorHandle {
     sender: mpsc::Sender<CoordinatorMessage>,
 }
 
+impl Default for JobCoordinatorHandle {
+    fn default() -> Self {
+        Self::spawn(1024) // arbitrary default to 1024 message channel capacity
+    }
+}
+
 impl JobCoordinatorHandle {
     /// Spawn a new coordinator.
     ///

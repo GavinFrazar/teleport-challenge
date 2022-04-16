@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# This script:
+# * makes CA certs and keys
+# * makes keys and CSRs for client/server
+# * uses the CA keys to sign the client/server CSRs
+
+rm -rf ./data
+mkdir data
+cd data
+
+openssl ecparam -name prime256v1 -out nistp256.pem
+openssl ecparam -name secp384r1 -out nistp384.pem
+
+# CA
+openssl req -nodes \
+          -x509 \
+          -newkey ec:nistp384.pem \
+          -keyout server_ca.key \
+          -out server_ca.pem \
+          -sha256 \
+          -batch \
+          -days 3650 \
+          -subj "/CN=SomeRootServerCA ECDSA CA"
+# CA
+openssl req -nodes \
+          -x509 \
+          -newkey ec:nistp384.pem \
+          -keyout client_ca.key \
+          -out client_ca.pem \
+          -sha256 \
+          -batch \
+          -subj "/CN=SomeRootClientCA ECDSA CA"
+
+# server
+openssl req -nodes \
+          -newkey ec:nistp256.pem \
+          -keyout server.key \
+          -out server.req \
+          -sha256 \
+          -batch \
+          -subj "/CN=jobserver.com"
+
+# client 'alice'
+openssl req -nodes \
+          -newkey ec:nistp384.pem \
+          -keyout alice.key \
+          -out alice.req \
+          -sha256 \
+          -batch \
+          -subj "/CN=alice/UID=alice"
+
+# client 'bob'
+openssl req -nodes \
+          -newkey ec:nistp384.pem \
+          -keyout bob.key \
+          -out bob.req \
+          -sha256 \
+          -batch \
+          -subj "/CN=bob/UID=bob"
+
+# client 'charlie'
+openssl req -nodes \
+          -newkey ec:nistp384.pem \
+          -keyout charlie.key \
+          -out charlie.req \
+          -sha256 \
+          -batch \
+          -subj "/CN=charlie/UID=charlie"
+
+# unauthenticated client 'Eve' - signs her own cert, but could just be any cert not signed by a CA we trust
+openssl req -nodes \
+          -x509 \
+          -newkey ec:nistp384.pem \
+          -keyout eve.key \
+          -out eve.pem \
+          -sha256 \
+          -batch \
+          -subj "/CN=eve/UID=eve"
+
+# sign server cert
+openssl x509 -req \
+        -in server.req \
+        -out server.pem \
+        -CA server_ca.pem \
+        -CAkey server_ca.key \
+        -sha256 \
+        -days 2000 \
+        -set_serial 456 \
+        -extensions v3_end -extfile ../openssl.cnf
+
+# sign alice's cert
+openssl x509 -req \
+        -in alice.req \
+        -out alice.pem \
+        -CA client_ca.pem \
+        -CAkey client_ca.key \
+        -sha256 \
+        -days 2000 \
+        -set_serial 789 \
+        -extensions v3_client -extfile ../openssl.cnf
+
+# sign bob's cert
+openssl x509 -req \
+        -in bob.req \
+        -out bob.pem \
+        -CA client_ca.pem \
+        -CAkey client_ca.key \
+        -sha256 \
+        -days 2000 \
+        -set_serial 789 \
+        -extensions v3_client -extfile ../openssl.cnf
+
+# sign charlie's cert
+openssl x509 -req \
+        -in charlie.req \
+        -out charlie.pem \
+        -CA client_ca.pem \
+        -CAkey client_ca.key \
+        -sha256 \
+        -days 2000 \
+        -set_serial 789 \
+        -extensions v3_client -extfile ../openssl.cnf
+
+cat server_ca.pem > server.chain
+cat server.pem server_ca.pem > server.fullchain
+
+cat client_ca.pem > alice.chain
+cat alice.pem client_ca.pem > alice.fullchain
+
+cat client_ca.pem > bob.chain
+cat bob.pem client_ca.pem > bob.fullchain
+
+cat client_ca.pem > charlie.chain
+cat charlie.pem client_ca.pem > charlie.fullchain
+
+cat eve.pem > eve.chain
+cat eve.pem client_ca.pem > eve.fullchain
+
+# parse pem to der
+openssl asn1parse -in server_ca.pem -out server_ca.der > /dev/null
+openssl asn1parse -in client_ca.pem -out client_ca.der > /dev/null
+openssl asn1parse -in server.pem -out server.der > /dev/null
+openssl asn1parse -in alice.pem -out alice.der > /dev/null
+openssl asn1parse -in bob.pem -out bob.der > /dev/null
+openssl asn1parse -in charlie.pem -out charlie.der > /dev/null
+openssl asn1parse -in eve.pem -out eve.der > /dev/null
+

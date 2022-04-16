@@ -1,3 +1,3 @@
 mod broadcaster;
-mod worker;
 pub mod coordinator;
+mod worker;
