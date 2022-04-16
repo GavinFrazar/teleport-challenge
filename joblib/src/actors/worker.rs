@@ -33,6 +33,7 @@ impl WorkerHandle {
             .envs(envs)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
+            .kill_on_drop(true)
             .spawn()?;
 
         let (sender, inbox) = mpsc::unbounded_channel();

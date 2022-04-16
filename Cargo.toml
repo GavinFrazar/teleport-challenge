@@ -3,4 +3,5 @@ members = [
     "joblib",
     "server",
     "protobuf",
+    "cli",
 ]

@@ -81,6 +81,7 @@ mod tests {
     use std::collections::HashMap;
     use std::path::PathBuf;
     use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
+    use tonic::Code;
 
     // start the server
     async fn start_server(addr: &'static str) {
@@ -247,6 +248,41 @@ mod tests {
             _ => {
                 panic!("unauthorized user got Ok response!")
             }
+        }
+    }
+
+    #[tokio::test]
+    async fn handles_command_errors() {
+        let addr = "[::1]:50055";
+        start_server(addr).await;
+        let mut client = build_client("charlie", addr).await;
+
+        // request a job for a command that doesnt exist
+        let request = tonic::Request::new(StartRequest {
+            cmd: "foo_bar_asfd".into(),
+            args: vec!["-n".into(), "hello charlie".into()],
+            dir: "/tmp".into(),
+            envs: HashMap::new(),
+        });
+        let response = client.start_job(request).await;
+        match response {
+            Err(err) if err.code() == Code::NotFound => {}
+            Err(err) => panic!("Job failed for unexpected reason: {}", err),
+            Ok(_) => panic!("Job succeeded even with empty PATH"),
+        }
+
+        // request a job for a file without +x permissions set
+        let request = tonic::Request::new(StartRequest {
+            cmd: "/etc/hosts".into(), // pretty sure bet this is on the machine and not executable
+            args: vec![],
+            dir: "/tmp".into(),
+            envs: HashMap::new(),
+        });
+        let response = client.start_job(request).await;
+        match response {
+            Err(err) if err.code() == Code::PermissionDenied => {} // os permission denied, not our authz!
+            Err(err) => panic!("Job failed for unexpected reason: {}", err),
+            Ok(_) => panic!("Job succeeded even with empty PATH"),
         }
     }
 }
